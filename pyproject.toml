@@ -1,0 +1,12 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ntest"
+version = "0.0.1"
+authors = [{name="Noah Mingolelli"}]
+license = "MIT"   # <--- use a string, not a table
+
+[project.scripts]
+ntest = "ntest:main"

@@ -1,0 +1,9 @@
+# shitty basic test and removing the cache too, viewing pytest
+.pytest_cache/
+test_test.py
+
+# egg info
+ntest.egg-info/
+
+# pycache
+__pycache__/
