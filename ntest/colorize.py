@@ -1,4 +1,5 @@
 from sys import stdout
+from typing import Any
 
 class Color:
     """Basic color/style class used to store all these colors."""
@@ -42,38 +43,68 @@ class Color:
 
 def colorize(text: str, *styles) -> str:
     """
-    Apply ANSI styles to the given text
+    Wrap the provided string in the provided styles.
     Example:
         colorize("Hello", Color.RED, Color.BOLD)
     """
     sequence: str = "".join(styles)
     return f"{sequence}{text}{Color.RESET}"
 
+def _parse_colors(args: list[Any], sep: str = " ") -> str:
+    """
+    Function to parse color and text arguments into a single, colorized string.
+    """
+    # output string
+    out: str = ""
 
-def printc(*args, end="\n", file=stdout, sep=" "):
+    for arg in args:
+        # convert to string first
+        arg = str(arg)
+
+        # if it's an ansi code just add it
+        if arg.startswith("\033["):
+            out += arg
+
+        # otherwise treat like a string
+        else:
+            # check for seperator
+            if out and not (out.endswith(sep) or arg.startswith(sep)):
+                out += sep
+
+            # add to arg
+            out += arg
+
+    return out
+
+
+def printc(*args, end: str = "\n", file=stdout, sep: str = " "):
     """
     Print colored text with mixed values and styles. Styles applied in order.
     Example:
-    # red will be red, bold will be bold
-        printc("This is ", Color.RED, "red", Color.RESET," and this is ", Color.BOLD, "bold", Color.RESET, ".")
+        printc("This is ", Color.RED, "red", Color.RESET, " and this is ", Color.BOLD, "bold", Color.RESET, ".")
     """
-    out = ""
+    # use color parser, add reset and end
+    out: str = _parse_colors(list(args), sep)
+    out += Color.RESET + end
 
-    for arg in args:
-        s = str(arg)
-        # detect ANSI‐style codes by escape prefix
-        if s.startswith("\033["):
-            out += s
+    # print to stdout (or whatever file u specify)
+    file.write(out)
 
-        else:
-            # add separator if needed: neither side has space
-            if out and not (out.endswith(sep) or s.startswith(sep)):
-                out += sep
-            out += s
 
-    out += Color.RESET
-    file.write(out + end)
-
+def inputc(*args, sep: str = " ", end: str = "", file=stdout) -> str:
+    """
+    Prompt colored text with mixed values and styles. Styles applied in order.
+    Example:
+        name = inputc("Enter ", Color.GREEN, "value", ": ")
+    """
+    # use color parser, add reset and end
+    prompt = _parse_colors(list(args), sep)
+    prompt += Color.RESET + end
+    
+    # print to stdout (or whatever file u specify), flush and get input
+    file.write(prompt)
+    file.flush()
+    return input("")
 
 # and some easy to access top level aliases duhhhh, colors:
 black = lambda text: colorize(text, Color.BLACK)
@@ -88,6 +119,3 @@ white = lambda text: colorize(text, Color.WHITE)
 # styles
 bold = lambda text: colorize(text, Color.BOLD)
 underline = lambda text: colorize(text, Color.UNDERLINE)
-
-if __name__ == "__main__":
-    printc("This is", Color.BOLD, "bold", Color.RESET, "and this is", Color.RED, "red.", Color.RESET)

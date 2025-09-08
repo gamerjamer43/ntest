@@ -37,4 +37,4 @@ def main() -> None:
             # print dem jawns out. this all i can do frn i need sleep
             print(f"Functions: {", ".join(func.__name__ for func in functions)}")
     
-    printc("\nPlatform: ", Color.BOLD, platform, Color.RESET)
+    printc("\nPlatform:", Color.GREEN, platform, Color.RESET)
