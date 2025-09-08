@@ -1,4 +1,4 @@
-# shitty basic test and removing the cache too, viewing pytest
+# shitty basic test and removing the cache too, viewing pytests output
 .pytest_cache/
 test_test.py
 

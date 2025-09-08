@@ -1,0 +1,67 @@
+PLANNED FEATURES!!!!! YIPPEE!!!
+- a full plugin manager (yes, ambitious. but in theory very fucking simple)
+- a TestCase base class for users to use:
+  
+  ```python
+  from abc import ABC, abstractmethod
+
+  class TestCase(ABC):
+      @classmethod
+      def setUpClass(cls): ...
+      @classmethod
+      def tearDownClass(cls): ...
+      def setUp(self): ...
+      def tearDown(self): ...
+
+      # Built-in assertions
+      def assertEqual(self, a, b, msg=None): ...
+      def assertNotEqual(self, a, b, msg=None): ...
+      def assertTrue(self, expr, msg=None): ...
+      def assertFalse(self, expr, msg=None): ...
+      def assertIsNone(self, obj, msg=None): ...
+      def assertIsNotNone(self, obj, msg=None): ...
+      def assertIn(self, member, container, msg=None): ...
+      def assertNotIn(self, member, container, msg=None): ...
+      def assertRaises(self, exc, func, *args, **kwargs): ...
+      def assertWarns(self, warn, func, *args, **kwargs): ...
+      def assertLogs(self, logger_name, level, func, *args, **kwargs): ...
+  ```
+- support fixtures (setup and cleanup routines for tests), and lifecycle hooks (so you can call shit at specific times, i.e before or after run):
+  - setUp() / tearDown(): per-test initialization and cleanup.
+  - setUpClass() / tearDownClass(): one-time setup/cleanup for an entire test class.
+  - Fixtures help ensure consistent test environments and manage shared resources.
+  - beforeAll/afterAll, around each test, async variants
+
+- Enable parameterized tests with a decorator or data-driven API:
+  ```python
+  def parameterize(cases):
+      def wrapper(fn):
+          # generate one test per case
+          return fn
+      return wrapper
+  ```
+  
+- support for custom assertion extensions
+- parameterized/test-data driven tests
+- tagging or markers to group and filter tests
+- skip/xfail decorators or annotations
+- test discovery hooks (automatic test method collection)
+- test suite composition (nesting and grouping)
+- test execution ordering controls
+- integration with mock/stub utilities
+- test result reporting (counts, failures, errors, summary)
+- logging capture and inspection
+- asynchronous test support (async setUp/tearDown)
+- resource management (temporary files/directories, database fixtures)
+- extensible lifecycle hooks (beforeAll, afterAll, around each test)
+- test metadata (custom labels, descriptions, severity levels)
+- pluggable runners and reporters
+- clear, human-readable failure output
+- error aggregation and traceback enhancement
+- custom test skip/retry logic
+- built-in timing and performance assertions
+- parallel/concurrent test execution support
+- compatibility layer for popular test frameworks
+- seamless IDE/test-runner integration
+- user-friendly DSL for test definitions
+- extensive documentation and examples

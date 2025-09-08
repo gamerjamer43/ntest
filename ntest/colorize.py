@@ -50,30 +50,44 @@ def colorize(text: str, *styles) -> str:
     return f"{sequence}{text}{Color.RESET}"
 
 
-def printc(*args, end="\n", file=stdout):
+def printc(*args, end="\n", file=stdout, sep=" "):
     """
-    Print colored text with mixed strings and styles.
-    Strings are colored with the current accumulated styles.
+    Print colored text with mixed values and styles. Styles applied in order.
     Example:
-        printc("hi", Color.GREEN, " world", Color.RESET)
+    # red will be red, bold will be bold
+        printc("This is ", Color.RED, "red", Color.RESET," and this is ", Color.BOLD, "bold", Color.RESET, ".")
     """
-    text: str = ""
-    styles: list = []
+    out = ""
 
     for arg in args:
-        if isinstance(arg, str):
-            text += colorize(arg, *styles)
+        s = str(arg)
+        # detect ANSI‐style codes by escape prefix
+        if s.startswith("\033["):
+            out += s
 
         else:
-            # assume a style
-            styles.append(arg)
+            # add separator if needed: neither side has space
+            if out and not (out.endswith(sep) or s.startswith(sep)):
+                out += sep
+            out += s
 
-    print(text, end=end, file=file)
+    out += Color.RESET
+    file.write(out + end)
 
 
-# and top level aliases duhhhh
+# and some easy to access top level aliases duhhhh, colors:
+black = lambda text: colorize(text, Color.BLACK)
 red = lambda text: colorize(text, Color.RED)
 green = lambda text: colorize(text, Color.GREEN)
+yellow = lambda text: colorize(text, Color.YELLOW)
 blue = lambda text: colorize(text, Color.BLUE)
+magenta = lambda text: colorize(text, Color.MAGENTA)
+cyan = lambda text: colorize(text, Color.CYAN)
+white = lambda text: colorize(text, Color.WHITE)
+
+# styles
 bold = lambda text: colorize(text, Color.BOLD)
 underline = lambda text: colorize(text, Color.UNDERLINE)
+
+if __name__ == "__main__":
+    printc("This is", Color.BOLD, "bold", Color.RESET, "and this is", Color.RED, "red.", Color.RESET)
