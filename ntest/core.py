@@ -18,11 +18,9 @@ from argparse import Namespace
 from time import time
 
 def main() -> None:
-    # argparser woohoo (now make it fuckin work)
+    # parse args into easy to access attributes
     args: Namespace = parse_args()
-    print(args)
 
-    # unpack args into easy to access shit
     path: str = args.path
     starting: str = args.start
     ending: str = args.end
@@ -33,7 +31,7 @@ def main() -> None:
     COLS: int = (get_terminal_size(fallback=(80, 24)).columns - 1) // 2
 
     # scan directory for tests
-    files: dict[str, list] = scandir(path)
+    files: dict[str, list] = scandir(path, start=starting, end=ending)
 
     # print header info (gone add more as plugin manager and shit work in)
     print(f"{Color.GREEN}{'=' * (COLS - 6)} TESTS START {'=' * (COLS - 6)}{Color.RESET}")

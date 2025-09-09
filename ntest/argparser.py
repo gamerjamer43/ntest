@@ -24,7 +24,7 @@ def parse_args() -> Namespace:
 
     parser.add_argument(
         "-e", "--end",
-        default="_test.py",
+        default="_test",
         help="End pattern to match test files."
     )
 

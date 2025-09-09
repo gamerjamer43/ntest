@@ -6,7 +6,7 @@ from os.path import isdir, isfile, join, splitext
 from importlib.util import module_from_spec, spec_from_file_location
 from inspect import getmembers, isfunction
 
-def scandir(path: str | PathLike[str], start: str = "", ending: str = "_test") -> dict[str, list]:
+def scandir(path: str | PathLike[str], start: str = "", end: str = "_test") -> dict[str, list]:
     """Walk the provided path and find all *_test.py files, returning a dict of file paths and their functions.
     Also works thru subdirectories using my little friend recursion. Looks for functions only in modules named *_test.py for right now.
     Will eventually make it so: 
@@ -37,7 +37,7 @@ def scandir(path: str | PathLike[str], start: str = "", ending: str = "_test") -
             tests.update(scandir(full_path))
 
         # if it is a file let's check it out      # V add custom pattern support
-        elif isfile(full_path) and ext == ".py" and name.endswith(ending) and name.startswith(start):
+        elif isfile(full_path) and ext == ".py" and name.startswith(start) and name.endswith(end):
             spec = spec_from_file_location(name, full_path)
             module = module_from_spec(spec)
             spec.loader.exec_module(module)
