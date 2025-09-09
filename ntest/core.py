@@ -1,24 +1,23 @@
 # my scanner and runner functions
 from .scanner import scandir
 from .runner import runtest
+from .argparser import parse_args
 
-# system info
+# colorize (also made by meeeee)
+from .colorize import Color
+
+# system/version info
 from platform import machine, node, python_compiler, python_version, system
 from shutil import get_terminal_size
+from ntest import __version__
 
 # time for timing tests i wonder...
 from time import time
 
-# traceback for error logging
-from traceback import format_exc
-
-# version info
-from ntest import __version__
-
-# colorize (made by meeeee)
-from .colorize import Color
-
 def main() -> None:
+    # argparser woohoo (now make it fuckin work)
+    print(parse_args())
+
     # get terminal width
     COLS: int = (get_terminal_size(fallback=(80, 24)).columns - 1) // 2
 

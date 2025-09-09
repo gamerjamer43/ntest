@@ -47,7 +47,6 @@ PLANNED FEATURES!!!!! YIPPEE!!!
 - test suite composition (nesting and grouping)
 - test execution ordering controls
 - integration with mock/stub utilities
-- test result reporting (counts, failures, errors, summary)
 - logging capture and inspection
 - asynchronous test support (async setUp/tearDown)
 - resource management (temporary files/directories, database fixtures)
