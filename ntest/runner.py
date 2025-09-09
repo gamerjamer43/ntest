@@ -6,13 +6,13 @@ from traceback import format_exc
 from .colorize import Color
 
 
-def runtest(files: dict[str, list]) -> None:
+def runtest(files: dict[str, list], ff: bool) -> tuple[list, list, int]:
     # open an empty results (to store pass fail, results are dict)
     results: list[dict] = []
 
     # run each test and record outcome
-    for file_path, funcs in files.items():
-        print(f"\n{Color.BLUE}{file_path}{Color.RESET}")
+    for path, funcs in files.items():
+        print(f"\n{Color.BLUE}{path}{Color.RESET}")
         for func in funcs:
             # time it and initialize an error value and a pass bool
             start: float = time()
@@ -32,19 +32,28 @@ def runtest(files: dict[str, list]) -> None:
             duration: float = time() - start
             results.append({
                 "name": func.__name__,
-                "file": file_path,
+                "file": path,
                 "passed": passed,
                 "duration": duration,
                 "error": error
             })
 
+            if passed == False and ff:
+                # if fast fail, we just stop right here. summarize in place
+                passes: list = [r for r in results if r["passed"]]
+                fails: list = [r for r in results if not r["passed"]]
+
+                # print the warning and return
+                print(f"{Color.RED}✗ {func.__name__}{Color.RESET} ({duration:.5f}s)")
+                print(f"{Color.RED}Fail‐fast enabled, stopping tests.{Color.RESET}")
+                return passes, fails, len(results)
+
             # pass/fail symbol cuz cool, also colorize (circa me) and print results
-            symbol: str = "✓" if passed else "✗"
             color: Color = Color.GREEN if passed else Color.RED
-            print(f"{color}{symbol} {func.__name__}{Color.RESET} ({duration:.2f}s)")
+            print(f"{color}{"✓" if passed else "✗"} {func.__name__}{Color.RESET} ({duration:.2f}s)")
 
     # summarize
-    passed: list = [r for r in results if r["passed"]]
-    failed: list = [r for r in results if not r["passed"]]
+    passes: list = [r for r in results if r["passed"]]
+    fails: list = [r for r in results if not r["passed"]]
 
-    return passed, failed, len(results)
+    return passes, fails, len(results)

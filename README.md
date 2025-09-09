@@ -70,7 +70,8 @@ ntest/
    
 
 I also added some command line options because we're def gonna need them:
-- `-p, --pattern`: glob pattern for test file names (default `test_*.py`)
+- `-s, --start`: specify the file name prefix for test files (default `''`).
+- `-e, --end`: specify the file name suffix for test files (default `'_test.py'`).
 - `-v, --verbose`: show individual test names and statuses
 - `-h, --help`: display help message
 

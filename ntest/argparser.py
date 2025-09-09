@@ -17,9 +17,15 @@ def parse_args() -> Namespace:
 
     # other optionals
     parser.add_argument(
-        "-p", "--pattern",
-        default="*_test.py",
-        help="Glob pattern to match test files"
+        "-s", "--start",
+        default="",
+        help="Start pattern to match test files."
+    )
+
+    parser.add_argument(
+        "-e", "--end",
+        default="_test.py",
+        help="End pattern to match test files."
     )
 
     parser.add_argument(
@@ -29,7 +35,7 @@ def parse_args() -> Namespace:
     )
     
     parser.add_argument(
-        "--fail-fast",
+        "-ff", "--fail-fast",
         action="store_true",
         help="Stop on first test failure"
     )
