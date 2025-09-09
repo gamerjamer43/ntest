@@ -1,8 +1,6 @@
 PLANNED FEATURES!!!!! YIPPEE!!!
 - a full plugin manager (yes, ambitious. but in theory very fucking simple)
 - a TestCase base class for users to use:
-  
-  ```python
   from abc import ABC, abstractmethod
 
   class TestCase(ABC):
@@ -25,7 +23,7 @@ PLANNED FEATURES!!!!! YIPPEE!!!
       def assertRaises(self, exc, func, *args, **kwargs): ...
       def assertWarns(self, warn, func, *args, **kwargs): ...
       def assertLogs(self, logger_name, level, func, *args, **kwargs): ...
-  ```
+
 - support fixtures (setup and cleanup routines for tests), and lifecycle hooks (so you can call shit at specific times, i.e before or after run):
   - setUp() / tearDown(): per-test initialization and cleanup.
   - setUpClass() / tearDownClass(): one-time setup/cleanup for an entire test class.
@@ -65,3 +63,4 @@ PLANNED FEATURES!!!!! YIPPEE!!!
 - seamless IDE/test-runner integration
 - user-friendly DSL for test definitions
 - extensive documentation and examples
+- result caching like pytests
