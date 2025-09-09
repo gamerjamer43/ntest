@@ -16,7 +16,7 @@ from time import time
 
 def main() -> None:
     # argparser woohoo (now make it fuckin work)
-    print(parse_args())
+    # print(parse_args())
 
     # get terminal width
     COLS: int = (get_terminal_size(fallback=(80, 24)).columns - 1) // 2
