@@ -11,45 +11,6 @@ from inspect import getmembers, isfunction, isclass
 # the testcase class and some other types
 from .classes.TestCase import TestCase
 from typing import Any, Callable
-from importlib.machinery import ModuleSpec
-from types import ModuleType
-from inspect import getmembers, isfunction, isclass
-
-def _collect_tests(obj: Any, module: ModuleType, start: str = "test_", end: str = "") -> list[Callable[..., Any]]:
-    """Collect all test functions and TestCase methods from a given object within a module.
-    When you provide a start and end, functions are ONLY matched that start or end with those strings.
-    The class itself is ran thru the run method, so it is added to the list by its own name.
-
-    Args:
-        obj (Any): The object to inspect (function or class).
-        module (ModuleType): The module where the object is defined.
-        start (str, optional): The prefix that test function/method names should start with. Defaults to "test_".
-        end (str, optional): The suffix that test function/method names should end with. Defaults to "".
-    
-    Returns:
-        list[Callable[..., Any]]: A list of collected test functions and methods.
-    """
-    # start an empty list for the functions we have rn
-    funcs: list[Callable[..., Any]] = []
-
-    # normal top level functions
-    if (
-        isfunction(obj)
-        and obj.__module__ == module.__name__
-        and obj.__name__.startswith(start)
-        and obj.__name__.endswith(end)
-    ):
-        funcs.append(obj)
-
-    # TestCase subclasses (just append the class, not its methods)
-    elif (
-        isclass(obj)
-        and issubclass(obj, TestCase)
-        and obj.__module__ == module.__name__
-    ):
-        funcs.append(obj)
-
-    return funcs
 
 def scandir(path: str | PathLike[str], start: str = "", end: str = "_test") -> dict[str, list]:
     """Walk the provided path and find all *_test.py files, returning a dict of file paths and their functions.
@@ -79,8 +40,9 @@ def scandir(path: str | PathLike[str], start: str = "", end: str = "_test") -> d
         long: str = join(root, entry)
 
         # split into name and extension
-        name: str = splitext(entry)[0]
-        ext: str = splitext(entry)[1]
+        split: tuple[str, str] = splitext(entry)
+        name: str = split[0]
+        ext: str = split[1]
 
         # find subdirectories by recursion!!!!! yippee!!!
         if isdir(long):
@@ -88,18 +50,34 @@ def scandir(path: str | PathLike[str], start: str = "", end: str = "_test") -> d
 
         # if it is a file (and a python file that matches start and end)
         elif isfile(long) and ext == ".py" and name.startswith(start) and name.endswith(end):
+            # load the module from the file
             spec: ModuleSpec | None = spec_from_file_location(name, long)
+
+            # if we couldn't load it, skip it
             if spec is None or spec.loader is None:
                 continue
             
+            # get its contents
             module: ModuleType = module_from_spec(spec)
             spec.loader.exec_module(module)
 
             # gather all test functions and TestCase methods
             funcs: list[Callable[..., Any]] = []
             for _, member in getmembers(module):
-                funcs.extend(_collect_tests(member, module))
-            
+                # first is function check, second is class. ik it's ugly
+                if (
+                    isfunction(member)
+                    and member.__module__ == module.__name__
+                    and member.__name__.startswith("test_")  # edit these two lines
+                    and member.__name__.endswith("")         # to function pattern params (not the start and stop we have already)
+                ) \
+                or (
+                    isclass(member)
+                    and issubclass(member, TestCase)
+                    and member.__module__ == module.__name__
+                ):
+                    funcs.append(member)
+
             # add to the dict if we found any at all
             tests[long] = funcs
 

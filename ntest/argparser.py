@@ -7,6 +7,18 @@ parser = ArgumentParser(
 )
 
 def parse_args() -> Namespace:
+    """Parse command line arguments and return them as a Namespace object.
+
+    Parser Arguments:
+        1. path (str, optional): The root directory to scan for tests. Defaults to the current directory.
+        2. -s, --start (str, optional): The starting pattern to match test files. Defaults to an empty string.
+        3. -e, --end (str, optional): The ending pattern to match test files. Defaults to "_test".
+        4. -v, --verbose (bool, optional): If set, enables verbose output with more precise timing and full error logs. Defaults to False.
+        5. -ff, --fail-fast (bool, optional): If set, stops execution immediately upon the first test failure. Defaults to False.
+
+    Returns:
+        Namespace: Parsed command line arguments.
+    """
     # path (not required)
     parser.add_argument(
         "path",
