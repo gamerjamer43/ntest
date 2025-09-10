@@ -60,19 +60,21 @@ def main() -> None:
 
     # failure info
     if failed:
-        print(f"\n{Color.RED}Failures:")
+        print(f"\n{Color.RED}Failures:{Color.RESET}")
         for index, result in enumerate(failed):
             # print the name of the function that failed, and the error line by line
-            print(f"{index + 1}. {result['name']} in {result['file']}:{Color.RESET}")
+            print(f"{Color.RED}{index + 1}. {result['name']} in {result['file']}:{Color.RESET}")
             if verbose:
                 print("\n".join(result["error"].splitlines()))
 
             else:
                 print(result["error"].strip().splitlines()[-1])
 
+            print() # blank line between failures
+
         # print summary of failures
-        print(f"\n{Color.RED}{seperator} {len(failed)} test{'s' if len(failed) > 1 else ''} failed (took {finish}s) {seperator}{Color.RESET}")
+        print(f"{Color.RED}{seperator} {len(failed)} test{'s' if len(failed) > 1 else ''} failed (took {finish}s) {seperator}{Color.RESET}")
     
     # and if there isn't any
     else:
-        print(f"\n{Color.GREEN}{seperator} {len(passed)} tests passed (took {finish}s) {seperator}{Color.RESET}")
+        print(f"{Color.GREEN}{seperator} {len(passed)} tests passed (took {finish}s) {seperator}{Color.RESET}")

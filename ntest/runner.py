@@ -32,8 +32,10 @@ def _runfunc(
     # empty list to hold results
     results: list[dict[str, str | bool | float | None]] = []
 
-    # skip entire flat function or TestCase class
-    if getattr(item, "__skip__", False):
+    # unified skip check for functions and TestCase classes
+    skip = getattr(item, "__skip__", False)
+    if skip:
+        print(f"{Color.YELLOW}skipping function {item.__name__} because: {skip}{Color.RESET}")
         return results
 
     if isclass(item) and issubclass(item, TestCase):
@@ -54,17 +56,23 @@ def _runfunc(
 
             # skip this test method if marked
             if getattr(method, "__skip__", False):
+                print(f"{Color.YELLOW}skipping function {item.__name__}.{name} because: {getattr(method, "__skip__")}{Color.RESET}")
                 continue
-
+            
+            # init empty error, start timer
             start = perf_counter()
             error = None
 
+            # try running everything
             try:
+                item.setUpClass()
                 inst = item()
                 inst.setUp()
                 getattr(inst, name)()
                 inst.tearDown()
+                inst.tearDownClass()
                 passed = True
+
             except Exception:
                 passed = False
                 error = format_exc()
@@ -83,36 +91,27 @@ def _runfunc(
             if not passed and ff:
                 break
 
-        # class-level tearDownClass
-        try:
-            item.tearDownClass()
-        
-        except AttributeError:
-            pass
-
     else:
-        # skip this test method if marked
-        if not getattr(item, "__skip__", False):
-            # flat function
-            start = perf_counter()
-            error = None
+        # flat function
+        start = perf_counter()
+        error = None
 
-            try:
-                item()
-                passed = True
+        try:
+            item()
+            passed = True
 
-            except Exception:
-                passed = False
-                error = format_exc()
+        except Exception:
+            passed = False
+            error = format_exc()
 
-            duration = perf_counter() - start
-            results.append({
-                "name": item.__name__,
-                "file": path,
-                "passed": passed,
-                "duration": duration,
-                "error": error
-            })
+        duration = perf_counter() - start
+        results.append({
+            "name": item.__name__,
+            "file": path,
+            "passed": passed,
+            "duration": duration,
+            "error": error
+        })
 
     return results
 
@@ -132,7 +131,20 @@ def runtest(files: dict[str, list], ff: bool, verbose: bool = False) -> tuple[li
 
         for func in funcs:
             # check for loop decorator
-            iterations: int = getattr(func, "__loop__", 1)
+            # determine the number of iterations (first element if __loop__ is a tuple)
+            loop: tuple | int = getattr(func, "__loop__", 1)
+            reason: str = ""
+
+            # if tuple, get first element
+            if isinstance(loop, tuple): 
+                iterations = loop[0]
+                reason = loop[1]
+            
+            # otherwise just 1
+            else: iterations = 1
+
+            if reason != "":
+                print(f"{Color.YELLOW}{reason}{Color.RESET}")
 
             for index in range(iterations):
                 # unified runner

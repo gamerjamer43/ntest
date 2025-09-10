@@ -24,8 +24,7 @@ def loop(times: int, reason: str):
         times (int): The number of times to repeat the test.
     """
     def decorator(fn):
-        print(f"looping function {fn.__name__} {times} times because: {reason}")
-        fn.__loop__ = times
+        fn.__loop__ = (times, f"looping function {fn.__name__} {times} times because: {reason}")
         return fn
     
     return decorator
