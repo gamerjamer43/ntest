@@ -1,8 +1,8 @@
 # ntest
 
-Overview:
+### Overview:
 
-ntest is a minimal Python unit testing framework designed to run just as good as any enterprise tests. It's both lightweight and fast for small tests, and super expansible for when you need it most.
+ntest is a minimal Python unit testing framework designed to run just as good as any enterprise tests. It's both lightweight and fast for small tests, and super expansible for when you need it most. I also kinda suck at naming BUT...
 
 ---
 
