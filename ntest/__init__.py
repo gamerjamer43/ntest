@@ -35,9 +35,11 @@ except Exception:
 
 # top level imports
 from .core import main
+from .TestCase import TestCase
 
 __all__ = [
     "main",
+    "TestCase",
 ]
 
 # template for imports (i'm a lazy developer)

@@ -33,9 +33,9 @@ def _runfunc(
     results: list[dict[str, str | bool | float | None]] = []
 
     # unified skip check for functions and TestCase classes
-    skip = getattr(item, "__skip__", False)
+    skip: str | bool = getattr(item, "__skip__", False)
     if skip:
-        print(f"{Color.YELLOW}skipping function {item.__name__} because: {skip}{Color.RESET}")
+        print(f"{Color.YELLOW}{skip}{Color.RESET}")
         return results
 
     if isclass(item) and issubclass(item, TestCase):
@@ -60,25 +60,44 @@ def _runfunc(
                 continue
             
             # init empty error, start timer
-            start = perf_counter()
-            error = None
+            start: float = perf_counter()
+            error: str | None = None
+
+            # retry count is the first element and reason is the 2nd
+            times: tuple | int = getattr(item, "__retry__", 1)
+            if isinstance(times, tuple): times: tuple = times[0]
 
             # try running everything
-            try:
-                item.setUpClass()
-                inst = item()
-                inst.setUp()
-                getattr(inst, name)()
-                inst.tearDown()
-                inst.tearDownClass()
-                passed = True
+            for _ in range(times):
+                start = perf_counter()
+                try:
+                    item.setUpClass()
+                    inst = item()
+                    inst.setUp()
+                    getattr(inst, name)()
+                    inst.tearDown()
+                    inst.tearDownClass()
+                    passed = True
 
-            except Exception:
-                passed = False
-                error = format_exc()
+                except Exception:
+                    passed = False
+                    error = format_exc()
+                    
+                if passed:
+                    duration = perf_counter() - start
+                    break
 
             formatted = f"{item.__name__}.{name}" if name != "run" else item.__name__
-            duration = perf_counter() - start
+
+            if getattr(method, "__timeout__", False):
+                timeout: float = getattr(method, "__timeout__")[0]
+                message: str = getattr(method, "__timeout__")[1]
+
+                print(f"{Color.RED}{message}{Color.RESET}")
+
+                if duration > timeout:
+                    passed = False
+                    error = f"Test timed out after {timeout} seconds.\n" + (error or "")
 
             results.append({
                 "name": formatted,
@@ -93,18 +112,44 @@ def _runfunc(
 
     else:
         # flat function
-        start = perf_counter()
-        error = None
+        start: float = perf_counter()
+        error: str | None = None
+        passed: bool
+        
+        # retry count is the first element and reason is the 2nd
+        times: tuple | int = getattr(item, "__retry__", 1)
+        if isinstance(times, tuple): times: tuple = times[0]
 
-        try:
-            item()
-            passed = True
+        # print if retrying
+        if times > 1:
+            reason: str = getattr(item, "__retry__", ("", ""))[1]
+            print(f"{Color.YELLOW}{reason}{Color.RESET}")
 
-        except Exception:
-            passed = False
-            error = format_exc()
+        for _ in range(times):
+            try:
+                item()
+                passed = True
 
-        duration = perf_counter() - start
+            except Exception:
+                passed = False
+                error = format_exc()
+
+            # time and break if passed
+            duration = perf_counter() - start
+            if passed:
+                break
+        
+        # timeouts do NOT
+        if getattr(item, "__timeout__", False):
+            timeout: float = getattr(item, "__timeout__")[0]
+            message: str = getattr(item, "__timeout__")[1]
+
+            print(f"{Color.YELLOW}{message}{Color.RESET}")
+
+            if duration > timeout:
+                passed = False
+                error = f"Test timed out after {timeout} seconds.\n" + (error or "")
+        
         results.append({
             "name": item.__name__,
             "file": path,

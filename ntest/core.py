@@ -51,11 +51,9 @@ def main() -> None:
     count: int = testinfo[2]
 
     # print those summaries
-    print(f"\n{Color.GREEN}{len(passed)} passed{Color.RESET}, "
-          f"{Color.RED}{len(failed)} failed{Color.RESET}, "
-          f"{count} total")
+    print(f"\n{Color.GREEN}{len(passed)} passed{Color.RESET}, {Color.RED}{len(failed)} failed{Color.RESET}, {count} total")
     
-    # mark finish time
+    # mark and format finish time
     finish: str = f"{time() - start:.03f}" if verbose else f"{time() - start:.02f}"
 
     # failure info
@@ -64,6 +62,8 @@ def main() -> None:
         for index, result in enumerate(failed):
             # print the name of the function that failed, and the error line by line
             print(f"{Color.RED}{index + 1}. {result['name']} in {result['file']}:{Color.RESET}")
+
+            # print based on if verbose is on
             if verbose:
                 print("\n".join(result["error"].splitlines()))
 
