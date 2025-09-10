@@ -6,19 +6,6 @@ from logging import getLogger
 
 from warnings import catch_warnings, simplefilter
 
-def skip(reason: str):
-    """Decorator to skip a test method. 
-    Hey idiot, this is why your test isn't running.
-    
-    Args:
-        reason (str): The reason for skipping the test.
-    """
-
-    def decorator(fn):
-        fn.__skip__ = reason
-        return fn
-    return decorator
-
 class TestCase(ABC):
     """Test case class for you to subclass in your tests.
     Methods:

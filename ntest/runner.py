@@ -12,86 +12,108 @@ from typing import Callable
 # my color library (if u can even call it that its rly just a class tbh, i made so cool functions tho)
 from .colorize import Color
 
-def _runfunc(item, path: str, ff: bool) -> list[dict[str, str, bool, str | None]]:
+# typing stuff
+from typing import Callable, Union, Any
+
+
+def _runfunc(
+    item: Union[Callable[[], Any], TestCase],
+    path: str,
+    ff: bool
+    ) -> list[dict[str, str | bool | float | None]]:
+
     """Unified runner for simple functions or TestCase subclasses.
+    
     Args:
-        item: The test item, can be a function or a TestCase subclass.
+        item (big fat type): The test item, can be a function or a TestCase subclass.
         path (str): The file path where the function is defined.
         ff (bool): Fast fail flag.
 
     Returns:
-        list[dict[str, str, bool, str | None]]: A list of dictionaries with the test result values: name, file, passed (bool), and error (str | None).
-    """
-    results = []
+        list[dict[str, str, bool, str | None]]: A list of dictionaries with the test result values: name, file, passed (bool), and error (str | None)."""
+    results: list[dict[str, str | bool | float | None]] = []
 
-    # check if class first
+    # skip entire flat function or TestCase class
+    if getattr(item, "__skip__", False):
+        return results
+
     if isclass(item) and issubclass(item, TestCase):
-        # class‐level setUpClass
+        # class-level setUpClass
         try:
             item.setUpClass()
         except AttributeError:
             pass
 
-        # collect all test_ methods
-        test_methods = [name for name in dir(item) if name.startswith("test_") or name == "run"]
+        # collect test_ methods and .run driver
+        test_methods = [
+            name for name in dir(item)
+            if name.startswith("test_") or name == "run"
+        ]
 
-        # run each test method
         for name in test_methods:
+            method = getattr(item, name)
+
+            # skip this test method if marked
+            if getattr(method, "__skip__", False):
+                continue
+
             start = perf_counter()
             error = None
 
-            # move this inside _runfunc
             try:
                 inst = item()
                 inst.setUp()
                 getattr(inst, name)()
                 inst.tearDown()
                 passed = True
-
             except Exception:
                 passed = False
                 error = format_exc()
 
-            # format the name nicely (if driver, just call it the class)
-            formatted: str = f"{item.__name__}.{name}" if name != "run" else item.__name__
+            formatted = f"{item.__name__}.{name}" if name != "run" else item.__name__
+            duration = perf_counter() - start
 
-            # no matter what tho, time it and log result
-            duration: float = perf_counter() - start
-            result: dict = {
+            results.append({
                 "name": formatted,
                 "file": path,
                 "passed": passed,
                 "duration": duration,
                 "error": error
-            }
+            })
 
-            results.append(result)
-
-            # fast‐fail
             if not passed and ff:
                 break
 
-        # class‐level tearDownClass
+        # class-level tearDownClass
         try:
             item.tearDownClass()
+        
         except AttributeError:
             pass
 
-    # otherwise assume function   
     else:
-        start = perf_counter()
-        error = None
+        # skip this test method if marked
+        if not getattr(item, "__skip__", False):
+            # flat function
+            start = perf_counter()
+            error = None
 
-        # run function and time
-        try:
-            item()
-            passed = True
-        except Exception:
-            passed = False
-            error = format_exc()
+            try:
+                item()
+                passed = True
 
-        duration = perf_counter() - start
-        results.append({"name": item.__name__, "file": path, "passed": passed, "duration": duration, "error": error})
+            except Exception:
+                passed = False
+                error = format_exc()
+
+            duration = perf_counter() - start
+            results.append({
+                "name": item.__name__,
+                "file": path,
+                "passed": passed,
+                "duration": duration,
+                "error": error
+            })
 
     return results
 

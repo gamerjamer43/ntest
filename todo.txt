@@ -12,13 +12,11 @@ PLANNED FEATURES!!!!! YIPPEE!!!
 2. Parameterization & Data-Driven Testing
 - parameterized / test-data driven tests
 - Enable parameterized tests with a decorator or data-driven API:
-  ```python
   def parameterize(cases):
       def wrapper(fn):
           # generate one test per case
           return fn
       return wrapper
-  ```
 
 3. Assertions & Performance
 - built-in timing and performance assertions
