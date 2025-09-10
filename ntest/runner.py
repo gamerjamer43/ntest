@@ -6,9 +6,6 @@ from traceback import format_exc
 from inspect import isclass
 from .TestCase import TestCase
 
-# typing bullshit
-from typing import Callable
-
 # my color library (if u can even call it that its rly just a class tbh, i made so cool functions tho)
 from .colorize import Color
 
