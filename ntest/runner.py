@@ -10,11 +10,11 @@ from .TestCase import TestCase
 from .colorize import Color
 
 # typing stuff
-from typing import Callable, Union, Any
+from typing import Any, Callable, Union, Type
 
 
 def _runfunc(
-    item: Union[Callable[[], Any], TestCase],
+    item: Union[Callable[[], Any], Type[TestCase]],
     path: str,
     ff: bool
     ) -> list[dict[str, str | bool | float | None]]:
@@ -28,6 +28,8 @@ def _runfunc(
 
     Returns:
         list[dict[str, str, bool, str | None]]: A list of dictionaries with the test result values: name, file, passed (bool), and error (str | None)."""
+    
+    # empty list to hold results
     results: list[dict[str, str | bool | float | None]] = []
 
     # skip entire flat function or TestCase class
@@ -129,20 +131,28 @@ def runtest(files: dict[str, list], ff: bool, verbose: bool = False) -> tuple[li
             print(f"{Color.YELLOW}No test functions found{Color.RESET}")
 
         for func in funcs:
-            # replace inline logic with unified runner
-            results = _runfunc(func, path, ff)
-            for result in results:
-                if result["passed"]: passes.append(result) 
-                else: fails.append(result)
+            # check for loop decorator
+            iterations: int = getattr(func, "__loop__", 1)
 
-                # pass/fail symbol cuz cool, also colorize (circa me) and print results
-                color: str = Color.GREEN if result["passed"] else Color.RED
-                fmt: str = f"{result['duration']:.6f}" if verbose else f"{result['duration']:.3f}"
-                print(f"{color}{'✓' if result['passed'] else '✗'} {result['name']}{Color.RESET} ({fmt}s)")
+            for index in range(iterations):
+                # unified runner
+                results = _runfunc(func, path, ff)
 
-                if not result['passed'] and ff:
-                    print(f"{Color.RED}Fail-fast enabled, stopping tests.{Color.RESET}")
-                    return passes, fails, len(passes) + len(fails)
+                # if there are results (not skipped)
+                for result in results:
+                    # pass/fail
+                    if result["passed"]: passes.append(result) 
+                    else: fails.append(result)
+
+                    # colorize (circa me) and print results
+                    color: str = Color.GREEN if result["passed"] else Color.RED
+                    fmt: str = f"{result['duration']:.6f}" if verbose else f"{result['duration']:.3f}"
+                    print(f"{color}{'✓' if result['passed'] else '✗'} {result['name']} {"#" + str(index + 1) + " " if iterations > 1 else ""}{Color.RESET}({fmt}s)")
+
+                    # if we didn't pass and fast-fail is on, stop everything
+                    if not result['passed'] and ff:
+                        print(f"{Color.RED}Fail-fast enabled, stopping tests.{Color.RESET}")
+                        return passes, fails, len(passes) + len(fails)
 
     # summarize
     return passes, fails, len(passes) + len(fails)

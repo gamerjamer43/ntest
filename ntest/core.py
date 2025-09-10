@@ -56,7 +56,7 @@ def main() -> None:
           f"{count} total")
     
     # mark finish time
-    finish: float = f"{time() - start:.03f}" if verbose else f"{time() - start:.02f}"
+    finish: str = f"{time() - start:.03f}" if verbose else f"{time() - start:.02f}"
 
     # failure info
     if failed:

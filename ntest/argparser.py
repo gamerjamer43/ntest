@@ -3,7 +3,7 @@ from argparse import Namespace, ArgumentParser
 # open the parser
 parser = ArgumentParser(
     prog="ntest",
-    description="A minimal Python test runner"
+    description="A minimal Python unit testing framework designed to run just as good as any enterprise tests. It's both lightweight and fast for small tests, and super expansible for when you need it most."
 )
 
 def parse_args() -> Namespace:
@@ -31,13 +31,13 @@ def parse_args() -> Namespace:
     parser.add_argument(
         "-v", "--verbose",
         action="store_true",
-        help="Show per‐test output even if passing"
+        help="Show a more precise time (3 digits on time, 6 on tests), and full error logs."
     )
     
     parser.add_argument(
         "-ff", "--fail-fast",
         action="store_true",
-        help="Stop on first test failure"
+        help="Stop immediately on first test failure"
     )
 
     return parser.parse_args()

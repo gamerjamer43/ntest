@@ -73,8 +73,10 @@ ntest/
 I also added some command line options because we're def gonna need them:
 - `-s, --start`: specify the file name prefix for test files (default `''`).
 - `-e, --end`: specify the file name suffix for test files (default `'_test.py'`).
-- `-v, --verbose`: show individual test names and statuses
+
+- `-v, --verbose`: show a more precise time (3 digits on total time, 6 on tests. double the originals), and full error logs.
 - `-ff, --fail-fast`: immediately quit on first failure (default `False`)
+
 - `-h, --help`: display help message
 
 ---
