@@ -18,17 +18,19 @@ from argparse import Namespace
 from time import time
 
 def main() -> None:
-    # parse args into easy to access attributes
+    # parse args using my function
     args: Namespace = parse_args()
 
+    # further parse into easily accessible vars
     path: str = args.path
     starting: str = args.start
     ending: str = args.end
-    verbose: bool = args.verbose # finish adding verbose
+    verbose: bool = args.verbose
     ff: bool = args.fail_fast
 
     # get terminal width
     COLS: int = (get_terminal_size(fallback=(80, 24)).columns - 1) // 2
+    seperator: str = '=' * (COLS - 16) if verbose else '=' * (COLS - 15)
 
     # scan directory for tests
     files: dict[str, list] = scandir(path, start=starting, end=ending)
@@ -37,17 +39,13 @@ def main() -> None:
     print(f"{Color.GREEN}{'=' * (COLS - 6)} TESTS START {'=' * (COLS - 6)}{Color.RESET}")
     print(f"Platform: {Color.GREEN}{system()} {machine()}{Color.RESET}, Device Name: {Color.GREEN}{node()}{Color.RESET}")
     print(f"Using: {Color.GREEN}Python {python_version()} [{python_compiler()}]{Color.RESET}")
-    print(f"Package Version: {Color.GREEN}ntest v{__version__}{Color.RESET}\n")
-
-    # go thru files and print functions (we're gonna call them for the tests)
-    for file, funcs in files.items():
-        print(f"Found file: {Color.GREEN}{file}{Color.RESET}, tests inside: {Color.GREEN}{', '.join(func.__name__ for func in funcs)}{Color.RESET}")
+    print(f"Package Version: {Color.GREEN}ntest v{__version__}{Color.RESET}")
 
     # CLOCK IT
     start: float = time()
 
     # run test and unpack info (static typing is my friend i'm super redundant)
-    testinfo: tuple[list, list, int] = runtest(files, ff)
+    testinfo: tuple[list, list, int] = runtest(files, ff, verbose)
     passed: list = testinfo[0]
     failed: list = testinfo[1]
     count: int = testinfo[2]
@@ -56,6 +54,9 @@ def main() -> None:
     print(f"\n{Color.GREEN}{len(passed)} passed{Color.RESET}, "
           f"{Color.RED}{len(failed)} failed{Color.RESET}, "
           f"{count} total")
+    
+    # mark finish time
+    finish: float = f"{time() - start:.03f}" if verbose else f"{time() - start:.02f}"
 
     # failure info
     if failed:
@@ -63,10 +64,15 @@ def main() -> None:
         for index, result in enumerate(failed):
             # print the name of the function that failed, and the error line by line
             print(f"{index + 1}. {result['name']} in {result['file']}:{Color.RESET}")
-            print("\n".join(result["error"].splitlines()))
-            
-        print(f"\n{Color.RED}{'=' * (COLS - 15)} {len(failed)} test{'s' if len(failed) > 1 else ''} failed (took {time() - start:.02f}s) {'=' * (COLS - 15)}{Color.RESET}")
+            if verbose:
+                print("\n".join(result["error"].splitlines()))
+
+            else:
+                print(result["error"].strip().splitlines()[-1])
+
+        # print summary of failures
+        print(f"\n{Color.RED}{seperator} {len(failed)} test{'s' if len(failed) > 1 else ''} failed (took {finish}s) {seperator}{Color.RESET}")
     
     # and if there isn't any
     else:
-        print(f"\n{Color.GREEN}{'=' * (COLS - 15)} {len(passed)} tests passed (took {time() - start:.02f}s) {'=' * (COLS - 15)}{Color.RESET}")
+        print(f"\n{Color.GREEN}{seperator} {len(passed)} tests passed (took {finish}s) {seperator}{Color.RESET}")

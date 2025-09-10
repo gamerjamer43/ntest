@@ -1,35 +1,16 @@
 PLANNED FEATURES!!!!! YIPPEE!!!
 - a full plugin manager (yes, ambitious. but in theory very fucking simple)
-- a TestCase base class for users to use:
-  from abc import ABC, abstractmethod
 
-  class TestCase(ABC):
-      @classmethod
-      def setUpClass(cls): ...
-      @classmethod
-      def tearDownClass(cls): ...
-      def setUp(self): ...
-      def tearDown(self): ...
+1. Test Structure & Lifecycle
+- asynchronous test support (async setUp/tearDown)
+- support fixtures (setup and cleanup routines for tests):
+  - setUp() / tearDown(): per-test initialization and cleanup
+  - setUpClass() / tearDownClass(): one-time setup/cleanup for an entire test class
+  - beforeAll / afterAll, around each test (sync & async)
+- extensible lifecycle hooks (beforeAll, afterAll, around each test)
 
-      # Built-in assertions
-      def assertEqual(self, a, b, msg=None): ...
-      def assertNotEqual(self, a, b, msg=None): ...
-      def assertTrue(self, expr, msg=None): ...
-      def assertFalse(self, expr, msg=None): ...
-      def assertIsNone(self, obj, msg=None): ...
-      def assertIsNotNone(self, obj, msg=None): ...
-      def assertIn(self, member, container, msg=None): ...
-      def assertNotIn(self, member, container, msg=None): ...
-      def assertRaises(self, exc, func, *args, **kwargs): ...
-      def assertWarns(self, warn, func, *args, **kwargs): ...
-      def assertLogs(self, logger_name, level, func, *args, **kwargs): ...
-
-- support fixtures (setup and cleanup routines for tests), and lifecycle hooks (so you can call shit at specific times, i.e before or after run):
-  - setUp() / tearDown(): per-test initialization and cleanup.
-  - setUpClass() / tearDownClass(): one-time setup/cleanup for an entire test class.
-  - Fixtures help ensure consistent test environments and manage shared resources.
-  - beforeAll/afterAll, around each test, async variants
-
+2. Parameterization & Data-Driven Testing
+- parameterized / test-data driven tests
 - Enable parameterized tests with a decorator or data-driven API:
   ```python
   def parameterize(cases):
@@ -38,28 +19,47 @@ PLANNED FEATURES!!!!! YIPPEE!!!
           return fn
       return wrapper
   ```
-  
-- support for custom assertion extensions
-- parameterized/test-data driven tests
-- tagging or markers to group and filter tests
-- skip/xfail decorators or annotations
-- test discovery hooks (automatic test method collection)
-- test suite composition (nesting and grouping)
-- test execution ordering controls
-- integration with mock/stub utilities
-- logging capture and inspection
-- asynchronous test support (async setUp/tearDown)
-- resource management (temporary files/directories, database fixtures)
-- extensible lifecycle hooks (beforeAll, afterAll, around each test)
-- test metadata (custom labels, descriptions, severity levels)
-- pluggable runners and reporters
-- clear, human-readable failure output
-- error aggregation and traceback enhancement
-- custom test skip/retry logic
+
+3. Assertions & Performance
 - built-in timing and performance assertions
-- parallel/concurrent test execution support
+- clear, human-readable failure output
+- support for custom assertion extensions
+- error aggregation and traceback enhancement
+
+4. Execution Control & Test Discovery
+- test discovery hooks (automatic test method collection)
+- test execution ordering controls
+- parallel / concurrent test execution support
+- custom test skip / retry logic
+- skip / xfail decorators or annotations
+
+5. Extensibility & Integration
 - compatibility layer for popular test frameworks
-- seamless IDE/test-runner integration
-- user-friendly DSL for test definitions
+- integration with mock / stub utilities
+- pluggable runners and reporters
+- result caching like pytest
+- seamless IDE / test-runner integration
+
+6. Reporting & Developer Tools
+- logging capture and inspection
+- test metadata (custom labels, descriptions, severity levels)
+- tagging or markers to group and filter tests
+- test suite composition (nesting and grouping)
+- resource management (temporary files/directories, database fixtures)
 - extensive documentation and examples
-- result caching like pytests
+- create a domain specific lang. i want it to look like:
+
+from ntest import describe, it, raises
+
+# "it" returns a TestBuilder with a .run() method. this is where the action itself goes
+describe("Calculator"):
+
+  it("adds two numbers",
+     params=[(1, 2, 3), (5, 7, 12)]) \
+  .run(lambda a, b, expected:
+     assert Calculator.add(a, b) == expected)
+
+  it("throws on overflow") \
+  .run(lambda:
+     with raises(OverflowError):
+       Calculator.add(10**1000, 10**1000))

@@ -48,11 +48,12 @@ ntest/
 
    ```python
    from ntest.core import TestCase
-
-   def test() -> None:
+   
+   # by default tests should prefix with test_, you can change both prefix and suffix tho
+   def test_() -> None:
         assert True == True
    
-   # when i add base cases you will be able to use a test case, for rn just use plain assert
+   # TestCases were added babey lets go, some easy stuff
    class MathTests(TestCase):
        def test_addition(self):
            self.assertEqual(1 + 1, 2)
@@ -73,6 +74,7 @@ I also added some command line options because we're def gonna need them:
 - `-s, --start`: specify the file name prefix for test files (default `''`).
 - `-e, --end`: specify the file name suffix for test files (default `'_test.py'`).
 - `-v, --verbose`: show individual test names and statuses
+- `-ff, --fail-fast`: immediately quit on first failure (default `False`)
 - `-h, --help`: display help message
 
 ---

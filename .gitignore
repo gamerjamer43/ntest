@@ -8,3 +8,7 @@ ntest.egg-info/
 
 # pycache
 __pycache__/
+
+# any mypyc build i may wanna do (which is dumb tho)
+.mypy_cache/
+build/

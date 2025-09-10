@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "ntest"
 version = "0.0.1"
 authors = [{name="Noah Mingolelli"}]
-license = "MIT"   # <--- use a string, not a table
+license = "MIT"
 
 [project.scripts]
 ntest = "ntest:main"
