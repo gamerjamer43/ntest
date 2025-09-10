@@ -1,25 +1,72 @@
+# typing stuff
+from typing import Any, Callable, Union, Type
+
 # time and traceback for tests
 from time import perf_counter
 from traceback import format_exc
 
 # class checking, and the actual class to check for
 from inspect import isclass
-from .TestCase import TestCase
+from .classes.TestCase import TestCase
 
 # my color library (if u can even call it that its rly just a class tbh, i made so cool functions tho)
 from .colorize import Color
 
-# typing stuff
-from typing import Any, Callable, Union, Type
+def _runclass(
+               item: Type[TestCase], 
+               name: str, 
+               times: int
+            ) -> tuple[bool, str | None, float]:
+    """
+    Run a single TestCase method up to `times` attempts.
+    Sends back passing status, error (if any), and duration.
 
+    Args:
+        item (Type[TestCase]): The TestCase subclass.
+        name (str): The method name to run.
+        times (int): Number of attempts.
 
-def _runfunc(
-    item: Union[Callable[[], Any], Type[TestCase]],
-    path: str,
-    ff: bool
+    Returns:
+        tuple[bool, str | None, float]: (passed, error, duration)
+    """
+    start: float = perf_counter()
+    passed = False
+    error: str | None = None
+
+    for _ in range(max(1, int(times))):
+        try:
+            # instantiate
+            inst = item()
+
+            # run with setup and teardown
+            inst.setUp()
+            getattr(inst, name)()
+            inst.tearDown()
+
+            # log results
+            passed = True
+            error = None
+
+            # break on success
+            break
+
+        except Exception:
+            # record last traceback
+            error = format_exc()
+
+    # time it
+    duration: float = perf_counter() - start
+    return passed, error, duration
+
+def _iterfuncs(
+        item: Union[Callable[[], Any], Type[TestCase]],
+        path: str,
+        ff: bool
     ) -> list[dict[str, str | bool | float | None]]:
-
-    """Unified runner for simple functions or TestCase subclasses.
+    """
+    Unified runner for simple functions or TestCase subclasses.
+    Iterates thru every function and calls either _runfunc or _runclass as needed.
+    Threads are used if a timeout is provided, which may make this slow
     
     Args:
         item (big fat type): The test item, can be a function or a TestCase subclass.
@@ -39,11 +86,8 @@ def _runfunc(
         return results
 
     if isclass(item) and issubclass(item, TestCase):
-        # class-level setUpClass
-        try:
-            item.setUpClass()
-        except AttributeError:
-            pass
+        # setup class before running each test
+        item.setUpClass()
 
         # collect test_ methods and .run driver
         test_methods = [
@@ -51,53 +95,40 @@ def _runfunc(
             if name.startswith("test_") or name == "run"
         ]
 
+        # work thru all of em
         for name in test_methods:
             method = getattr(item, name)
 
             # skip this test method if marked
-            if getattr(method, "__skip__", False):
-                print(f"{Color.YELLOW}skipping function {item.__name__}.{name} because: {getattr(method, "__skip__")}{Color.RESET}")
+            if skip:
+                print(f"{Color.YELLOW}skipping function {item.__name__}.{name} because: {skip}{Color.RESET}")
                 continue
             
             # init empty error, start timer
             start: float = perf_counter()
             error: str | None = None
+            passed: bool
 
             # retry count is the first element and reason is the 2nd
             times: tuple | int = getattr(item, "__retry__", 1)
             if isinstance(times, tuple): times: tuple = times[0]
 
-            # try running everything
-            for _ in range(times):
-                start = perf_counter()
-                try:
-                    item.setUpClass()
-                    inst = item()
-                    inst.setUp()
-                    getattr(inst, name)()
-                    inst.tearDown()
-                    inst.tearDownClass()
-                    passed = True
-
-                except Exception:
-                    passed = False
-                    error = format_exc()
-                    
-                if passed:
-                    duration = perf_counter() - start
-                    break
-
-            formatted = f"{item.__name__}.{name}" if name != "run" else item.__name__
-
+            # print if timing out
             if getattr(method, "__timeout__", False):
                 timeout: float = getattr(method, "__timeout__")[0]
                 message: str = getattr(method, "__timeout__")[1]
 
-                print(f"{Color.RED}{message}{Color.RESET}")
+                print(f"{Color.YELLOW}{message}{Color.RESET}")
 
-                if duration > timeout:
-                    passed = False
-                    error = f"Test timed out after {timeout} seconds.\n" + (error or "")
+            # try running everything
+            passed, error, duration = _runclass(item, name, times)
+
+            # timeouts do NOT
+            if getattr(item, "__timeout__", False) and duration > timeout:
+                passed = False
+                error = f"Test timed out after {timeout} seconds.\n" + (error or "")
+
+            formatted = f"{item.__name__}.{name}" if name != "run" else item.__name__
 
             results.append({
                 "name": formatted,
@@ -125,6 +156,14 @@ def _runfunc(
             reason: str = getattr(item, "__retry__", ("", ""))[1]
             print(f"{Color.YELLOW}{reason}{Color.RESET}")
 
+        # print if timing out
+        if getattr(item, "__timeout__", False):
+            timeout: float = getattr(item, "__timeout__")[0]
+            message: str = getattr(item, "__timeout__")[1]
+
+            print(f"{Color.YELLOW}{message}{Color.RESET}")
+
+        # try running everything
         for _ in range(times):
             try:
                 item()
@@ -140,15 +179,9 @@ def _runfunc(
                 break
         
         # timeouts do NOT
-        if getattr(item, "__timeout__", False):
-            timeout: float = getattr(item, "__timeout__")[0]
-            message: str = getattr(item, "__timeout__")[1]
-
-            print(f"{Color.YELLOW}{message}{Color.RESET}")
-
-            if duration > timeout:
-                passed = False
-                error = f"Test timed out after {timeout} seconds.\n" + (error or "")
+        if getattr(item, "__timeout__", False) and duration > timeout:
+            passed = False
+            error = f"Test timed out after {timeout} seconds.\n" + (error or "")
         
         results.append({
             "name": item.__name__,
@@ -193,7 +226,7 @@ def runtest(files: dict[str, list], ff: bool, verbose: bool = False) -> tuple[li
 
             for index in range(iterations):
                 # unified runner
-                results = _runfunc(func, path, ff)
+                results = _iterfuncs(func, path, ff)
 
                 # if there are results (not skipped)
                 for result in results:

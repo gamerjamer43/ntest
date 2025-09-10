@@ -22,7 +22,6 @@ Should give you some simple results:
 ### Inside the ntest folder:
 ```
 ntest/
-│
 ├── __init__.py     # package marker
 │
 ├── argparser.py    # i wonder what this does... provides optional pattern, -v, and --fix-fast

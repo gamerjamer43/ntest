@@ -1,51 +1,45 @@
 PLANNED FEATURES!!!!! YIPPEE!!!
-- a full plugin manager (yes, ambitious. but in theory very fucking simple)
+- something for rn: 
+- a full plugin manager (yes, ambitious. but in theory very fucking simple) [NOT STARTED]
 
 1. Test Structure & Lifecycle
-- asynchronous test support (async setUp/tearDown)
+- asynchronous test support (async setUp/tearDown) [NOT DONE]
 - support fixtures (setup and cleanup routines for tests):
-  - setUp() / tearDown(): per-test initialization and cleanup
-  - setUpClass() / tearDownClass(): one-time setup/cleanup for an entire test class
-  - beforeAll / afterAll, around each test (sync & async)
-- extensible lifecycle hooks (beforeAll, afterAll, around each test)
+  - setUp() / tearDown(): per-test initialization and cleanup [DONE]
+  - setUpClass() / tearDownClass(): one-time setup/cleanup for an entire test class [DONE]
+  - beforeAll / afterAll, around each test (sync & async) [ADD TO RUNNER]
 
 2. Parameterization & Data-Driven Testing
-- parameterized / test-data driven tests
-- Enable parameterized tests with a decorator or data-driven API:
-  def parameterize(cases):
-      def wrapper(fn):
-          # generate one test per case
-          return fn
-      return wrapper
+- parameterized / test-data driven tests (decorator) [NOT DONE]
 
 3. Assertions & Performance
-- built-in timing and performance assertions
-- clear, human-readable failure output
-- support for custom assertion extensions
-- error aggregation and traceback enhancement
+- built-in timing and performance assertions [ADD BENCHMARKING, TIMING/LOOP IS DONE]
+- clear, human-readable failure output [DONE, -v FOR VERBOSE OUTPUT]
+- support for custom assertion extensions [...MAYBE? I HAVE A ABC]
+- error aggregation and traceback enhancement [WHAT IS THIS]
 
 4. Execution Control & Test Discovery
-- test discovery hooks (automatic test method collection)
-- test execution ordering controls
-- parallel / concurrent test execution support
-- custom test skip / retry logic
-- skip / xfail decorators or annotations
+- test discovery hooks (automatic test method collection) [DONE]
+- test execution ordering controls [NOT DONE]
+- parallel / concurrent test execution support [NOT DONE]
+- custom test skip / retry logic [DONE @skip AND @retry]
+- skip / xfail decorators or annotations [DONE @skip, NOT DONE @xfail?]
 
 5. Extensibility & Integration
-- compatibility layer for popular test frameworks
-- integration with mock / stub utilities
-- pluggable runners and reporters
-- result caching like pytest
-- seamless IDE / test-runner integration
+- compatibility layer for popular test frameworks [WHAT IS THIS]
+- integration with mock / stub utilities [NOT DONE]
+- pluggable runners and reporters [NOT DONE (see top)]
+- result caching like pytest [DO THIS NEXT, SUPER FUCKING EASY]
+- seamless IDE / test-runner integration [NOT DONE, FIGURE OUT HOW TF]
 
 6. Reporting & Developer Tools
-- logging capture and inspection
-- test metadata (custom labels, descriptions, severity levels)
-- tagging or markers to group and filter tests
-- test suite composition (nesting and grouping)
-- resource management (temporary files/directories, database fixtures)
-- extensive documentation and examples
-- create a domain specific lang. i want it to look like:
+- logging capture and inspection [WHAT IS THIS]
+- test metadata (custom labels, descriptions, severity levels) [WHERE DO I DO THIS]
+- tagging or markers to group and filter tests [NOT DONE, CAN DO]
+- test suite composition (nesting and grouping) [WHAT IS THIS]
+- resource management (temporary files/directories, database fixtures) [NOT DONE, 7/10 DIFFICULTY]
+- extensive documentation and examples [DIRT EASY, WILL DO LATER]
+- create a domain specific lang. i want it to look like: [HARD BTW]
 
 from ntest import describe, it, raises
 

@@ -1,6 +1,8 @@
+# typing and standard out
 from sys import stdout
 from typing import ClassVar
 
+# the color class we gotta steal from
 class Color:
     """Basic color/style class used to store all these colors."""
     # reset
@@ -40,7 +42,7 @@ class Color:
     BG_CYAN: ClassVar[str]        = "\033[46m"
     BG_WHITE: ClassVar[str]       = "\033[47m"
 
-
+# color helpers
 def colorize(text: str, *styles) -> str:
     """
     Wrap the provided string in the provided styles.
@@ -76,7 +78,7 @@ def _parse_colors(args: list[Color | str], sep: str = " ") -> str:
 
     return out
 
-
+# print and input (but colored!!! so special!!!)
 def printc(*args, end: str = "\n", file=stdout, sep: str = " "):
     """
     Print colored text with mixed values and styles. Styles applied in order.
@@ -105,6 +107,7 @@ def inputc(*args, sep: str = " ", end: str = "", file=stdout) -> str:
     file.write(prompt)
     file.flush()
     return input("")
+
 
 # and some easy to access top level aliases duhhhh, colors:
 black = lambda text: colorize(text, Color.BLACK)

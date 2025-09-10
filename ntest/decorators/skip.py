@@ -1,8 +1,7 @@
 from types import FunctionType
 
 def skip(reason: str) -> FunctionType:
-    """Decorator to skip a test method. 
-    Hey idiot, this is why your test isn't running.
+    """Mark a test method to be skipped. Hey idiot, this is why your test isn't running.
     
     Args:
         reason (str): The reason for skipping the test.

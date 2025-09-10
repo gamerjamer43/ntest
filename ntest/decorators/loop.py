@@ -1,8 +1,7 @@
 from types import FunctionType
 
 def loop(times: int, reason: str) -> FunctionType:
-    """Mark a test function to be repeated a given number of times.
-    Good for stress or unit testing.
+    """Mark a test to be repeated a given number of times. Good for stress or unit testing.
     
     Args:
         reason (str): The reason for skipping the test.

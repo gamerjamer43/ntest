@@ -9,7 +9,7 @@ from types import ModuleType
 from inspect import getmembers, isfunction, isclass
 
 # the testcase class and some other types
-from .TestCase import TestCase
+from .classes.TestCase import TestCase
 from typing import Any, Callable
 from importlib.machinery import ModuleSpec
 from types import ModuleType
