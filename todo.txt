@@ -1,5 +1,5 @@
 PLANNED FEATURES!!!!! YIPPEE!!!
-- something for rn: 
+- something for rn: work TestResult in
 - a full plugin manager (yes, ambitious. but in theory very fucking simple) [NOT STARTED]
 
 1. Test Structure & Lifecycle

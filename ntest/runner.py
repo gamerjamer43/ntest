@@ -1,4 +1,5 @@
 # typing stuff
+from importlib.machinery import ModuleSpec
 from typing import Any, Callable, Union, Type
 from types import FunctionType
 
@@ -12,6 +13,16 @@ from .classes.TestCase import TestCase
 
 # my color library (if u can even call it that its rly just a class tbh, i made so cool functions tho)
 from .colorize import Color
+
+# module helpers
+from importlib import import_module
+from sys import modules
+
+# multiprocessing helpers (all this for timeouts)
+from importlib.util import module_from_spec, spec_from_file_location
+from multiprocessing import get_context
+from os import getpid
+from pathlib import Path
 
 # function helpers (_runfunc and _runclass)
 def _runfunc(
@@ -90,6 +101,64 @@ def _runclass(
 
     
     return passed, error
+
+# helper to run a test target inside a separate process and return results via a queue
+def _proc_runner(queue, path, parent_name, method_name, is_method, times):
+    """
+    Runs a test function or TestCase method inside a separate process.
+    Imports the module (by file path or module name), resolves the parent (function or class) by name,
+    runs the target and puts (passed, error) on the queue.
+
+    Args:
+        queue (multiprocessing.Queue): Queue to send results back to parent process.
+        path (str): The module name or file path where the function/class is defined.
+        parent_name (str): The name of the function or class to run.
+        method_name (str): The method name to run if parent is a class.
+        is_method (bool): True if parent is a class, False if it's a function.
+        times (int): Number of attempts.
+
+    Returns:
+        None: Results are sent via the queue.
+    """
+    passed = False
+    error: str | None = None
+
+    try:
+        mod = None
+        fp: str = Path(path)
+        if fp.suffix == ".py" and fp.exists():
+            module_name = f"{fp.stem}_{getpid()}"
+            spec: ModuleSpec = spec_from_file_location(module_name, str(fp))
+            if spec and spec.loader:
+                mod = module_from_spec(spec)
+                modules[module_name] = mod
+                spec.loader.exec_module(mod)
+
+        # normal import if load failed or path is a module name
+        if mod is None:
+            mod = import_module(path)
+
+        # resolve the parent (could raise AttributeError)
+        parent = getattr(mod, parent_name)
+
+        # if it's a method, run class helper, else func helper
+        if is_method:
+            passed, error = _runclass(parent, method_name, times)
+
+        else:
+            passed, error = _runfunc(parent, times)
+
+    except Exception:
+        passed = False
+        error = format_exc()
+
+    # best-effort send result back to parent
+    try:
+        queue.put((passed, error))
+
+    # also put errors
+    except Exception:
+        queue.put((False, "Failed to send result from child process:\n" + format_exc()))
 
 # iterate through all of the potential specs, determine class or function and call
 def _iterfuncs(
@@ -176,17 +245,41 @@ def _iterfuncs(
         # time
         start: float = perf_counter()
 
-        # execute
-        if is_method:
-            # reuse existing helper for class methods
-            passed, error = _runclass(item, name, times)
+        # execute with optional timeout in a separate process
+        start = perf_counter()
+        if clock is not None:
+
+            ctx = get_context("spawn")
+            q = ctx.Queue()
+            parent_name = getattr(item, "__name__", str(item))
+            p = ctx.Process(target=_proc_runner, args=(q, path, parent_name, name, is_method, times))
+            p.start()
+            p.join(clock)
+
+            duration = perf_counter() - start
+
+            if p.is_alive():
+                # timeout exceeded: terminate process and mark failed
+                p.terminate()
+                p.join()
+                passed = False
+                error = f"Test timed out after {clock} seconds.\n" + (error or "")
+            else:
+                # process finished within timeout, fetch result if available
+                try:
+                    passed, error = q.get_nowait()
+                except Exception:
+                    passed = False
+                    error = None
 
         else:
-           # reuse existing helper for class methods
-            passed, error = _runfunc(item, times)
+            # no timeout: run in-process as before
+            if is_method:
+                passed, error = _runclass(item, name, times)
+            else:
+                passed, error = _runfunc(item, times)
 
-        # time it
-        duration: float = perf_counter() - start
+            duration = perf_counter() - start
 
         # apply timeout check if needed
         if clock is not None and duration > clock:
