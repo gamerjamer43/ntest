@@ -1,7 +1,10 @@
-# shitty basic test and removing the cache too, viewing pytests output
+# remove cache for pytest
 .pytest_cache/
+
+# some tests
 test_test.py
 test2_test.py
+renametodemo.py
 
 # egg info
 ntest.egg-info/

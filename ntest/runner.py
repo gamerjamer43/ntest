@@ -1,7 +1,9 @@
-# typing stuff
-from importlib.machinery import ModuleSpec
-from typing import Any, Callable, Union, Type
+# types (static typing is my friend)
+from queue import Queue
 from types import FunctionType
+from importlib.machinery import ModuleSpec
+from multiprocessing.context import SpawnContext
+from typing import Any, Callable, Union, Type
 
 # time and traceback for tests
 from time import perf_counter
@@ -98,7 +100,6 @@ def _runclass(
         except Exception:
             # record last traceback
             error = format_exc()
-
     
     return passed, error
 
@@ -125,13 +126,17 @@ def _proc_runner(queue, path, parent_name, method_name, is_method, times):
 
     try:
         mod = None
+
+        # try loading from file path if it looks like one (idk why we have to do this twice)
         fp: str = Path(path)
         if fp.suffix == ".py" and fp.exists():
-            module_name = f"{fp.stem}_{getpid()}"
-            spec: ModuleSpec = spec_from_file_location(module_name, str(fp))
+            modname: str = f"{fp.stem}_{getpid()}"
+            spec: ModuleSpec = spec_from_file_location(modname, str(fp))
+            
+            # if there
             if spec and spec.loader:
-                mod = module_from_spec(spec)
-                modules[module_name] = mod
+                mod: ModuleSpec = module_from_spec(spec)
+                modules[modname] = mod
                 spec.loader.exec_module(mod)
 
         # normal import if load failed or path is a module name
@@ -142,11 +147,8 @@ def _proc_runner(queue, path, parent_name, method_name, is_method, times):
         parent = getattr(mod, parent_name)
 
         # if it's a method, run class helper, else func helper
-        if is_method:
-            passed, error = _runclass(parent, method_name, times)
-
-        else:
-            passed, error = _runfunc(parent, times)
+        if is_method: passed, error = _runclass(parent, method_name, times)
+        else: passed, error = _runfunc(parent, times)
 
     except Exception:
         passed = False
@@ -248,36 +250,44 @@ def _iterfuncs(
         # execute with optional timeout in a separate process
         start = perf_counter()
         if clock is not None:
+            # get context
+            ctx: SpawnContext = get_context("spawn")
 
-            ctx = get_context("spawn")
-            q = ctx.Queue()
+            # build process
+            q: Queue = ctx.Queue()
             parent_name = getattr(item, "__name__", str(item))
             p = ctx.Process(target=_proc_runner, args=(q, path, parent_name, name, is_method, times))
+
+            # start and time
             p.start()
             p.join(clock)
 
+            # measure duration
             duration = perf_counter() - start
 
             if p.is_alive():
-                # timeout exceeded: terminate process and mark failed
+                # timeout exceeded, kill!!!!
                 p.terminate()
                 p.join()
+
+                # failed test
                 passed = False
                 error = f"Test timed out after {clock} seconds.\n" + (error or "")
+
             else:
-                # process finished within timeout, fetch result if available
+                # process finished within time limit
                 try:
                     passed, error = q.get_nowait()
+
+                # if we couldn't get result, fail
                 except Exception:
                     passed = False
                     error = None
 
         else:
             # no timeout: run in-process as before
-            if is_method:
-                passed, error = _runclass(item, name, times)
-            else:
-                passed, error = _runfunc(item, times)
+            if is_method: passed, error = _runclass(item, name, times)
+            else: passed, error = _runfunc(item, times)
 
             duration = perf_counter() - start
 
