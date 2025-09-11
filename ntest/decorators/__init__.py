@@ -19,6 +19,7 @@ TBD:
 # - parametrize decorator to run a test with different sets of arguments (maybe)
 
 from .loop import loop
+from .patch import patch
 from .retry import retry
 from .skip import skip
 from .timeout import timeout

@@ -11,8 +11,9 @@ from platform import machine, node, python_compiler, python_version, system
 from shutil import get_terminal_size
 from ntest import __version__
 
-# namespace type for argparser
+# necessary types for checking
 from argparse import Namespace
+from .classes.TestResult import TestResult
 
 # time for timing tests i wonder...
 from time import time
@@ -53,24 +54,24 @@ def main() -> None:
     # print those summaries
     print(f"\n{Color.GREEN}{len(passed)} passed{Color.RESET}, {Color.RED}{len(failed)} failed{Color.RESET}, {count} total")
     
-    # mark and format finish time
-    finish: str = f"{time() - start:.03f}" if verbose else f"{time() - start:.02f}"
+    # clock precision in a CLEAN MANNER
+    precision: int = 3 if verbose else 2
+    finish: str = f"{time() - start:.{precision}f}"
 
-    # failure info
     if failed:
         print(f"\n{Color.RED}Failures:{Color.RESET}")
-        for index, result in enumerate(failed):
-            # print the name of the function that failed, and the error line by line
-            print(f"{Color.RED}{index + 1}. {result['name']} in {result['file']}:{Color.RESET}")
 
-            # print based on if verbose is on
+        # loop through failures
+        result: TestResult
+        for index, result in enumerate(failed):
+            # print the name of the function that failed, and the error line by line (more content if -v)
+            print(f"{Color.RED}{index + 1}. {result.name} in {result.file}:{Color.RESET}")
+
             if verbose:
-                print("\n".join(result["error"].splitlines()))
+                print("\n".join(result.error.splitlines()), end="\n")
 
             else:
-                print(result["error"].strip().splitlines()[-1])
-
-            print() # blank line between failures
+                print(result.error.strip().splitlines()[-1], end="\n")
 
         # print summary of failures
         print(f"{Color.RED}{seperator} {len(failed)} test{'s' if len(failed) > 1 else ''} failed (took {finish}s) {seperator}{Color.RESET}")

@@ -11,6 +11,7 @@ PLANNED FEATURES!!!!! YIPPEE!!!
 
 2. Parameterization & Data-Driven Testing
 - parameterized / test-data driven tests (decorator) [NOT DONE]
+- @patch decorator that allows you to provide data (not sure if just str | list or if i need to add others) and send it to any input for testing
 
 3. Assertions & Performance
 - built-in timing and performance assertions [ADD BENCHMARKING, TIMING/LOOP IS DONE]

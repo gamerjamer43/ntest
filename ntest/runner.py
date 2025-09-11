@@ -1,13 +1,14 @@
 # types (static typing is my friend)
 from queue import Queue
-from types import FunctionType
+from types import FunctionType, ModuleType
 from importlib.machinery import ModuleSpec
 from multiprocessing.context import SpawnContext
 from typing import Any, Callable, Union, Type
 
-# time and traceback for tests
+# test utilities
 from time import perf_counter
 from traceback import format_exc
+from .classes.TestResult import TestResult
 
 # class checking, and the actual class to check for
 from inspect import isclass
@@ -123,33 +124,37 @@ def _proc_runner(queue, path, parent_name, method_name, is_method, times):
     """
     passed = False
     error: str | None = None
+    mod: ModuleType | None = None
 
     try:
-        mod = None
 
-        # try loading from file path if it looks like one (idk why we have to do this twice)
-        fp: str = Path(path)
+        # i am a little upset b/c 
+        fp = Path(path)
         if fp.suffix == ".py" and fp.exists():
             modname: str = f"{fp.stem}_{getpid()}"
-            spec: ModuleSpec = spec_from_file_location(modname, str(fp))
-            
-            # if there
-            if spec and spec.loader:
-                mod: ModuleSpec = module_from_spec(spec)
-                modules[modname] = mod
-                spec.loader.exec_module(mod)
+            spec: ModuleSpec | None = spec_from_file_location(modname, str(fp))
 
-        # normal import if load failed or path is a module name
+            if spec and spec.loader:
+                module: ModuleType = module_from_spec(spec)
+                modules[modname] = module
+                spec.loader.exec_module(module)
+                mod = module
+
+        # if we didn't load from file, try normal imports
         if mod is None:
             mod = import_module(path)
 
         # resolve the parent (could raise AttributeError)
         parent = getattr(mod, parent_name)
 
-        # if it's a method, run class helper, else func helper
-        if is_method: passed, error = _runclass(parent, method_name, times)
-        else: passed, error = _runfunc(parent, times)
+        # run the appropriate helper
+        if is_method:
+            passed, error = _runclass(parent, method_name, times)
 
+        else:
+            passed, error = _runfunc(parent, times)
+
+    # catch errors
     except Exception:
         passed = False
         error = format_exc()
@@ -157,17 +162,19 @@ def _proc_runner(queue, path, parent_name, method_name, is_method, times):
     # best-effort send result back to parent
     try:
         queue.put((passed, error))
-
-    # also put errors
     except Exception:
-        queue.put((False, "Failed to send result from child process:\n" + format_exc()))
+        # attempt one more time with a safe message, then swallow any exceptions
+        try:
+            queue.put((False, "Failed to send result from child process:\n" + format_exc()))
+        except Exception:
+            pass
 
 # iterate through all of the potential specs, determine class or function and call
 def _iterfuncs(
-        item: Union[Callable[[], Any], Type[TestCase]],
-        path: str,
-        ff: bool
-    ) -> list[dict[str, str | bool | float | None]]:
+    item: Union[Callable[[], Any], Type[TestCase]],
+    path: str,
+    ff: bool
+) -> list[TestResult]:
     """
     Unified runner for simple functions or TestCase subclasses.
     Iterates thru every function and calls either _runfunc or _runclass as needed.
@@ -181,139 +188,121 @@ def _iterfuncs(
     Returns:
         list[dict[str, str, bool, str | None]]: A list of dictionaries with the test result values: name, file, passed (bool), and error (str | None)."""
 
-    # empty list for results
-    results: list[dict[str, str | bool | float | None]] = []
+    # open empty list
+    results: list[TestResult] = []
 
-    # check if skip decorator is present
-    skip: str | bool = getattr(item, "__skip__", False)
-    if skip:
-        print(f"{Color.YELLOW}{skip}{Color.RESET}")
+    # skip decorator at class level
+    if getattr(item, "__skip__", False):
+        print(f"{Color.YELLOW}{getattr(item, '__skip__')}{Color.RESET}")
         return results
 
     # build targets as (object, name, is_method)
-    targets: list[tuple[Union[Callable[..., Any], Type[TestCase]], str, bool]] = []
-
-    # if it is a proper class set er up first
     if isclass(item) and issubclass(item, TestCase):
-        # this is just pass in case someone wants to override it
+        # class-level setup
         item.setUpClass()
 
-        # collect test_ methods (will change to be dynamic start/end) and .run driver
-        test_methods = [
-            name for name in dir(item)
-            if name.startswith("test_") or name == "run"
-        ]
-        
-        # add methods as targets
-        targets = [(item, name, True) for name in test_methods]
+        # methods = list of method names starting with "test_" or "run"
+        # targets = list of test case, method, and mark method as method
+        methods: list[str] = [n for n in dir(item) if n.startswith("test_") or n == "run"]
+        targets: tuple[TestCase, str, bool] = [(item, n, True) for n in methods]
 
-    # otherwise a normal function
+    # otherwise just a function
     else:
         targets = [(item, getattr(item, "__name__", str(item)), False)]
 
+    # iterate through targets
     for obj, name, is_method in targets:
-        # find callable, skip flag, and display name
-        parent: Any = getattr(obj, name) if is_method else obj
-        skip: str | bool = getattr(parent, "__skip__", False)
-        display: str = getattr(parent, "__name__", parent)
+        # resolve parent (only two choices are class or function)
+        parent = getattr(obj, name) if is_method else obj
 
-        # skip check
-        if skip:
-            print(f"{Color.YELLOW}skipping function {display}.{name} because: {skip}{Color.RESET}")
+        # skip decorator at method/function level
+        if getattr(parent, "__skip__", False):
+            disp = getattr(parent, "__name__", parent)
+            reason = getattr(parent, "__skip__")
+            print(f"{Color.YELLOW}skipping function {disp}.{name} because: {reason}{Color.RESET}")
             continue
-
-        # things we need get initialized here
+        
+        # mark what we must
         start: float = perf_counter()
-        error: str | None = None
         passed: bool = False
-        times: int
-        reason: str
+        error: str | None = None
 
-        # check for retry count and reason
-        retry: int | tuple[int, str] = getattr(item, "__retry__", 0)
-        times, reason = retry if isinstance(retry, tuple) else (retry, "")
+        # retry count and reason
+        retry: tuple[int, str] | int = getattr(item, "__retry__", 0)
+        times, reason = (retry, "") if not isinstance(retry, tuple) else retry
         if times > 0 and reason:
             print(f"{Color.YELLOW}{reason}{Color.RESET}")
 
-        # unpack timeout tuple if it's present
-        timeout: str = getattr(parent if is_method else item, "__timeout__", False)
-        clock: float | None = timeout[0] if timeout else None
+        # timeout tuple
+        timeout: tuple[float, str] = getattr(parent if is_method else item, "__timeout__", False)
+        clock: float = timeout[0] if timeout else None
         message: str = timeout[1] if timeout else ""
-        
-        # if we got output print it
         if message:
             print(f"{Color.YELLOW}{message}{Color.RESET}")
 
-        # time
-        start: float = perf_counter()
-
-        # execute with optional timeout in a separate process
-        start = perf_counter()
+        # run in separate process if timeout is set
         if clock is not None:
-            # get context
+            # multiprocess so we can yank it out of existence
             ctx: SpawnContext = get_context("spawn")
-
-            # build process
             q: Queue = ctx.Queue()
-            parent_name = getattr(item, "__name__", str(item))
-            p = ctx.Process(target=_proc_runner, args=(q, path, parent_name, name, is_method, times))
 
-            # start and time
+            # get parent and open process
+            pname: str = getattr(item, "__name__", str(item))
+            p = ctx.Process(
+                target=_proc_runner,
+                args=(q, path, pname, name, is_method, times)
+            )
+
+            # start and join with timeout
             p.start()
             p.join(clock)
 
-            # measure duration
-            duration = perf_counter() - start
+            # clock er!
+            duration: float = perf_counter() - start
 
+            # if we're really still going??? timeout and error
             if p.is_alive():
-                # timeout exceeded, kill!!!!
                 p.terminate()
                 p.join()
-
-                # failed test
                 passed = False
                 error = f"Test timed out after {clock} seconds.\n" + (error or "")
 
+            # otherwise get result from queue
             else:
-                # process finished within time limit
                 try:
                     passed, error = q.get_nowait()
 
-                # if we couldn't get result, fail
                 except Exception:
                     passed = False
                     error = None
-
         else:
-            # no timeout: run in-process as before
-            if is_method: passed, error = _runclass(item, name, times)
-            else: passed, error = _runfunc(item, times)
-
+            # in-process run
+            if is_method:
+                passed, error = _runclass(item, name, times)
+            else:
+                passed, error = _runfunc(item, times)
             duration = perf_counter() - start
 
-        # apply timeout check if needed
+        # enforce timeout even if process returned quickly
         if clock is not None and duration > clock:
             passed = False
             error = f"Test timed out after {clock} seconds.\n" + (error or "")
 
-        # formatted name (.run is shorthanded to the class name itself)
-        formatted = f"{item.__name__}.{name}" if is_method and name != "run" else (item.__name__ if is_method else name)
-        results.append({
-            "name": formatted,
-            "file": path,
-            "passed": passed,
-            "duration": duration,
-            "error": error
-        })
+        # formatted test name. lotta checks here
+        formatted = (f"{item.__name__}.{name}"
+                     if is_method and name != "run"
+                     else (item.__name__ if is_method else name))
+        
+        results.append(TestResult(name=formatted, file=path, passed=passed, duration=duration, error=error))
 
-        # if we didn't pass and fast-fail is on, stop everything
+        # fail-fast
         if not passed and ff:
             break
 
     return results
 
 # main runner, takes a dict of files and functions, runs them all, and returns a summary
-def runtest(files: dict[str, list], ff: bool, verbose: bool = False) -> tuple[list, list, int]:
+def runtest(files: dict[str, list], ff: bool, verbose: bool = False) -> tuple[list[TestResult], list[TestResult], int]:
     """
     Main test runner. Takes a dictionary of file paths and their associated test functions or classes.
     Runs each test, collecting results, and returns lists of passes, fails, and total run count. Prints test data along the way.
@@ -329,57 +318,46 @@ def runtest(files: dict[str, list], ff: bool, verbose: bool = False) -> tuple[li
             - List of failing test result dictionaries.
             - Total number of tests run.
     """
+
     # open empty pass and fail lists, count total runs
-    passes: list[dict] = []
-    fails: list[dict] = []
-    runs: int = 0
+    passes: list[TestResult] = []
+    fails: list[TestResult] = []
+    runs = 0
 
     # go thru each file
     for path, funcs in files.items():
-        # print file path
         print(f"\n{Color.BLUE}{path}{Color.RESET}")
 
-        # if no funcs, skip
+        # skip if none
         if not funcs:
             print(f"{Color.YELLOW}No test functions found{Color.RESET}")
             continue
-
-        # hoist iteration and message definitions
-        iterations: int
-        message: str
         
-        # go thru each function in the file
+        # run each function or class in the file
         for func in funcs:
-            # determine loop count and get message
+            # check for loop decorator
             loopdata = getattr(func, "__loop__", 1)
             iterations, message = (loopdata, "") if not isinstance(loopdata, tuple) else loopdata
 
+            # print loop message if any
             if message:
                 print(f"{Color.YELLOW}{message}{Color.RESET}")
 
+            # run the function or class the specified number of times
             for index in range(iterations):
-                # iterate thru all functions
-                results = _iterfuncs(func, path, ff)
-
-                for res in results:
-                    # increment run count
+                # get results from helper for each run
+                for result in _iterfuncs(func, path, ff):
+                    # increment run, append pass/fail
                     runs += 1
-                    
-                    # add to pass or fail list
-                    target_list = passes if res["passed"] else fails
-                    target_list.append(res)
+                    target: list = passes if result.passed else fails
+                    target.append(result)
 
-                    # print results
-                    symbol = "✓" if res["passed"] else "✗"
-                    color = Color.GREEN if res["passed"] else Color.RED
-                    formatted: str = f"{res["duration"]:.6f}" if verbose else f"{res["duration"]:.3f}"
+                    color = Color.GREEN if result.passed else Color.RED
+                    formatted = f"{result.duration:.6f}" if verbose else f"{result.duration:.3f}"
+                    looptag = f"#{index + 1} " if iterations > 1 else ""
+                    print(f"{color}{"✓" if result.passed else "✗"} {result.name} {looptag}{Color.RESET}({formatted}s)")
 
-                    # if looping, add loop tag
-                    loopcount: int = f"#{index + 1} " if iterations > 1 else ""
-                    print(f"{color}{symbol} {res['name']} {loopcount}{Color.RESET}({formatted}s)")
-
-                    # if we didn't pass and fast-fail is on, stop everything
-                    if not res["passed"] and ff:
+                    if not result.passed and ff:
                         print(f"{Color.RED}Fail-fast enabled, stopping tests.{Color.RESET}")
                         return passes, fails, runs
 
