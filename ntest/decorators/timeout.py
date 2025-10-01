@@ -8,7 +8,7 @@ def timeout(seconds: float, reason: str) -> FunctionType:
     """
 
     def decorator(fn: FunctionType) -> FunctionType:
-        fn.__timeout__ = (seconds, f"failing function {fn.__name__} if test is longer than {seconds} seconds, reason: {reason}")
+        fn.__timeout__ = (seconds, f"failing function {fn.__name__} if test is longer than {seconds} seconds, reason: {reason}") # type: ignore
         return fn
     
     return decorator

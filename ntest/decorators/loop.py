@@ -8,7 +8,7 @@ def loop(times: int, reason: str) -> FunctionType:
         times (int): The number of times to repeat the test.
     """
     def decorator(fn: FunctionType) -> FunctionType:
-        fn.__loop__ = (times, f"looping function {fn.__name__} {times} times, reason: {reason}")
+        fn.__loop__ = (times, f"looping function {fn.__name__} {times} times, reason: {reason}") # type: ignore
         return fn
     
     return decorator

@@ -8,7 +8,7 @@ def retry(attempts: int, reason: str) -> FunctionType:
     """
 
     def decorator(fn: FunctionType) -> FunctionType:
-        fn.__retry__ = (attempts, f"retrying function {fn.__name__} {attempts} times (if it fails) because: {reason}")
+        fn.__retry__ = (attempts, f"retrying function {fn.__name__} {attempts} times (if it fails) because: {reason}") # type: ignore
         return fn
     
     return decorator

@@ -9,7 +9,7 @@ def patch(data: str | list, reason: str) -> FunctionType:
     """
 
     def decorator(fn: FunctionType) -> FunctionType:
-        fn.__patch__ = (data, f"patching data to {fn.__name__} {data}, reason: {reason}")
+        fn.__patch__ = (data, f"patching data to {fn.__name__} {data}, reason: {reason}") # type: ignore
         return fn
     
     return decorator

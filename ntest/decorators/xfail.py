@@ -10,7 +10,7 @@ def xfail(reason: str, strict: bool = False) -> FunctionType:
     """
 
     def decorator(fn: FunctionType) -> FunctionType:
-        fn.__xfail__ = (reason, strict)
+        fn.__xfail__ = (reason, strict) # type: ignore
         return fn
     
     return decorator
