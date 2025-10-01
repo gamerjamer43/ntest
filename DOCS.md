@@ -1,6 +1,4 @@
-# ntest — User documentation (concise)
-
-## Work In Progress
+# ntest — User documentation (WIP 🚧)
 
 Quick start
 -----------
@@ -11,12 +9,13 @@ Quick start
 
 3. Run the runner from code or the CLI (if installed):
    - Programmatic:
+     ```python
      from ntest import scanner, runner
      files = scanner.scandir('tests')
-     passes, fails, runs = runner.runtest(files, ff=False, verbose=False)
+     passes, fails, runs = runner.runtest(files, ff=False, verbose=False)```
 
    - Or Quick Command:
-      ntest [path: str = "."] [-s START --s START] [-e END --end END] [-v --verbose] [-ff --fail-fast]
+      `ntest [path: str = "."] [-s START --s START] [-e END --end END] [-v --verbose] [-ff --fail-fast]`
 
 Basic function test
 -------------------
@@ -55,10 +54,14 @@ class MyTests(TestCase):
 
 Discovery and runner behavior
 ----------------------------
-- scanner.scandir(path, start="", end="_test") -> dict[file_path, list]
-  - Walks the given path recursively, finds .py files matching start/end, loads them, and returns a mapping of file paths to discovered callables (module-level test_ functions and TestCase subclasses).
+- ```python
+  scanner.scandir(path, start="", end="_test") -> dict[file_path, list]
+  ```
+  - Walks the given path recursively, finds .py files matching start/end, loads them, and returns a mapping of file paths to discovered callables (module-level test_ functions and TestCase subclasses).<br><br>
 
-- runner.runtest(files, ff, verbose=False) -> (passes, fails, runs)
+- ```python
+  runner.runtest(files, ff, verbose=False) -> (passes, fails, runs)
+  ```
   - Runs discovered items. For TestCase subclasses it runs all methods that start with `test_` plus an optional `run` method. Returns lists of passed and failed test result dictionaries and a run count.
 
 Controlling tests: attributes and small decorators
@@ -66,10 +69,11 @@ Controlling tests: attributes and small decorators
 The runner recognizes a few attributes on functions and classes to control execution: __skip__, __retry__, __loop__, and __timeout__. You can set these attributes manually on functions or classes, or use small helper decorators like the examples below.
 
 Common attributes
-- __skip__: bool | str — if truthy, the item is skipped. If a string, printed as the reason.
-- __retry__: int | (int, str) — number of attempts. If provided as (n, reason) the reason is printed before attempts.
-- __loop__: int | (int, str) — repeat the *callable-group* this many times; if a tuple, a message is printed once.
-- __timeout__: (seconds, message) | False — run the test in a child process and kill it if it exceeds seconds; message is printed if present.
+- \_\_skip__: bool | str — if truthy, the item is skipped. If a string, printed as the reason.
+- \_\_retry__: int | (int, str) — number of attempts. If provided as (n, reason) the reason is printed before attempts.
+- \_\_loop__: int | (int, str) — repeat the *callable-group* this many times; if a tuple, a message is printed once.
+- \_\_timeout__: (seconds, message) | run the test in a child process and kill it if it exceeds seconds; message is printed if present.
+- - \_\patch__: (data, message) | patch input to the process (if it has input. WIP)
 
 These all come with decorators to call them, so you can literally just do:
 
