@@ -9,7 +9,7 @@ from .colorize import Color
 # system/version info
 from platform import machine, node, python_compiler, python_version, system
 from shutil import get_terminal_size
-from ntest import __version__
+from ntest import __version__ # type: ignore
 
 # necessary types for checking
 from argparse import Namespace
@@ -18,7 +18,7 @@ from .classes.TestResult import TestResult
 # time for timing tests i wonder...
 from time import time
 
-def main() -> None:
+def run() -> None:
     # parse args using my function
     args: Namespace = parse_args()
 
@@ -28,6 +28,7 @@ def main() -> None:
     ending: str = args.end
     verbose: bool = args.verbose
     ff: bool = args.fail_fast
+    output: bool = args.output
 
     # get terminal width
     COLS: int = (get_terminal_size(fallback=(80, 24)).columns - 1) // 2
@@ -46,7 +47,7 @@ def main() -> None:
     start: float = time()
 
     # run test and unpack info (static typing is my friend i'm super redundant)
-    testinfo: tuple[list, list, int] = runtest(files, ff, verbose)
+    testinfo: tuple[list, list, int] = runtest(files, ff, verbose, output)
     passed: list = testinfo[0]
     failed: list = testinfo[1]
     count: int = testinfo[2]
@@ -67,11 +68,14 @@ def main() -> None:
             # print the name of the function that failed, and the error line by line (more content if -v)
             print(f"{Color.RED}{index + 1}. {result.name} in {result.file}:{Color.RESET}")
 
-            if verbose:
+            if verbose and result.error:
                 print("\n".join(result.error.splitlines()), end="\n")
 
-            else:
+            elif result.error:
                 print(result.error.strip().splitlines()[-1], end="\n")
+
+            else:
+                print(f"{Color.YELLOW}No error message provided.{Color.RESET}")
 
         # print summary of failures
         print(f"{Color.RED}{seperator} {len(failed)} test{'s' if len(failed) > 1 else ''} failed (took {finish}s) {seperator}{Color.RESET}")

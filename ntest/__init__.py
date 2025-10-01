@@ -53,12 +53,20 @@ except Exception:
     __version__ = "0.0.1" # if i'm still to lazy to publish we're still in 0.0.1
 
 # top level imports
-from .core import main
+from .core import run
+
+# classes we need
 from .classes.TestCase import TestCase
 from .classes.TestResult import TestResult
 
-__all__ = [
-    "main",
+# too lazy to get all the decorators, so lets just do that
+from .decorators import __all__ as decorators
+from .decorators import *
+
+__all__: list[str] = [ 
+    "run",
     "TestCase",
     "TestResult",
+    "__version__",
+    *decorators # type: ignore
 ]

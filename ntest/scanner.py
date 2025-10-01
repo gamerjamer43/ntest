@@ -1,6 +1,7 @@
 # directory scanning
 from os import PathLike, listdir
-from os.path import isdir, isfile, join, splitext
+from os.path import isdir, isfile, join, splitext, abspath
+from sys import path as syspath
 
 # what lets you actually run the functions
 from importlib.util import module_from_spec, spec_from_file_location
@@ -30,6 +31,9 @@ def scandir(path: str | PathLike[str], start: str = "", end: str = "_test") -> d
 
     # root directory to scan
     root: str | PathLike[str] = path or '.'
+
+    # insert cwd to path so imports work
+    syspath.insert(0, abspath(root))
 
     # dict of test file paths and their lists of functions
     tests: dict[str, list] = {}

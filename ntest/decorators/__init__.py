@@ -23,10 +23,13 @@ from .patch import patch
 from .retry import retry
 from .skip import skip
 from .timeout import timeout
+from .xfail import xfail
 
 __all__ = [
     "loop",
+    "patch",
     "skip",
     "retry",
-    "timeout"
+    "timeout",
+    "xfail",
 ]

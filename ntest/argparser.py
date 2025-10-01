@@ -1,4 +1,5 @@
-from argparse import Namespace, ArgumentParser
+from argparse import FileType, Namespace, ArgumentParser
+from sys import stdout
 
 # open the parser
 parser = ArgumentParser(
@@ -50,6 +51,15 @@ def parse_args() -> Namespace:
         "-ff", "--fail-fast",
         action="store_true",
         help="Stop immediately on first test failure"
+    )
+
+    parser.add_argument(
+        "-o", "--output",
+        nargs="?",
+        const=stdout,
+        type=FileType("w"),
+        default=None,
+        help="Dump results to stdout (no path) or to <path>."
     )
 
     return parser.parse_args()

@@ -9,4 +9,4 @@ authors = [{name="Noah Mingolelli"}]
 license = "MIT"
 
 [project.scripts]
-ntest = "ntest:main"
+ntest = "ntest:run"

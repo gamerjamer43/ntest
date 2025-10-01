@@ -3,11 +3,12 @@ from queue import Queue
 from types import FunctionType, ModuleType
 from importlib.machinery import ModuleSpec
 from multiprocessing.context import SpawnContext
-from typing import Any, Callable, Union, Type
+from typing import Any, Callable, Union, Type, Literal
 
 # test utilities
 from time import perf_counter
 from traceback import format_exc
+
 from .classes.TestResult import TestResult
 
 # class checking, and the actual class to check for
@@ -27,11 +28,36 @@ from multiprocessing import get_context
 from os import getpid
 from pathlib import Path
 
+import io
+import sys
+import builtins
+from contextlib import contextmanager
+
+@contextmanager
+def _no_io(output: bool):
+    if output:
+        yield
+    else:
+        orig_out, orig_err = sys.stdout, sys.stderr
+        orig_input = builtins.input
+        sys.stdout = sys.stderr = io.StringIO()
+        builtins.input = lambda prompt='': (_ for _ in ()).throw(RuntimeError("STDIN disabled"))
+
+        # yield control back
+        try:
+            yield
+        
+        # catch any exceptions and reraise
+        finally:
+            sys.stdout, sys.stderr = orig_out, orig_err
+            builtins.input = orig_input
+
 # function helpers (_runfunc and _runclass)
 def _runfunc(
-               item: FunctionType, 
-               times: int
-            ) -> tuple[bool, str | None, float]:
+    item: FunctionType, 
+    times: int,
+    output: bool = False
+) -> tuple[bool, str | None]:
     """
     Run a single basic function test up to `times` attempts.
     Sends back passing status, and an error (if any)
@@ -47,24 +73,26 @@ def _runfunc(
     error: str | None = None
 
     for _ in range(max(1, int(times))):
-        try:
-            item()
-            passed = True
-            error = None
+        with _no_io(output):
+            try:
+                item()
+                passed = True
+                error = None
 
-            # break on success
-            break
+                # break on success
+                break
 
-        except Exception:
-            # record last traceback
-            error = format_exc()
+            except Exception:
+                # record last traceback
+                error = format_exc()
 
     return passed, error
 
 def _runclass(
                item: Type[TestCase], 
                name: str, 
-               times: int
+               times: int,
+               output: bool = False
             ) -> tuple[bool, str | None]:
     """
     Run a single TestCase method up to `times` attempts.
@@ -82,30 +110,31 @@ def _runclass(
     error: str | None = None
 
     for _ in range(max(1, int(times))):
-        try:
-            # instantiate
-            inst = item()
+        with _no_io(output):
+            try:
+                # instantiate
+                inst = item()
 
-            # run with setup and teardown
-            inst.setUp()
-            getattr(inst, name)()
-            inst.tearDown()
+                # run with setup and teardown
+                inst.setUp()
+                getattr(inst, name)()
+                inst.tearDown()
 
-            # log results
-            passed = True
-            error = None
+                # log results
+                passed = True
+                error = None
 
-            # break on success
-            break
+                # break on success
+                break
 
-        except Exception:
-            # record last traceback
-            error = format_exc()
-    
+            except Exception:
+                # record last traceback
+                error = format_exc()
+
     return passed, error
 
 # helper to run a test target inside a separate process and return results via a queue
-def _proc_runner(queue, path, parent_name, method_name, is_method, times):
+def _proc_runner(queue, path, parent_name, method_name, is_method, times, output: bool = False):
     """
     Runs a test function or TestCase method inside a separate process.
     Imports the module (by file path or module name), resolves the parent (function or class) by name,
@@ -149,19 +178,20 @@ def _proc_runner(queue, path, parent_name, method_name, is_method, times):
 
         # run the appropriate helper
         if is_method:
-            passed, error = _runclass(parent, method_name, times)
+            passed, error = _runclass(parent, method_name, times, output)
 
         else:
-            passed, error = _runfunc(parent, times)
+            passed, error = _runfunc(parent, times, output)
 
     # catch errors
     except Exception:
         passed = False
         error = format_exc()
 
-    # best-effort send result back to parent
+    # try and send result back to parent
     try:
         queue.put((passed, error))
+
     except Exception:
         # attempt one more time with a safe message, then swallow any exceptions
         try:
@@ -171,9 +201,10 @@ def _proc_runner(queue, path, parent_name, method_name, is_method, times):
 
 # iterate through all of the potential specs, determine class or function and call
 def _iterfuncs(
-    item: Union[Callable[[], Any], Type[TestCase]],
+    item: Union[Callable[[], Any], FunctionType],
     path: str,
-    ff: bool
+    ff: bool,
+    output: bool = False
 ) -> list[TestResult]:
     """
     Unified runner for simple functions or TestCase subclasses.
@@ -186,7 +217,7 @@ def _iterfuncs(
         ff (bool): Fast fail flag.
 
     Returns:
-        list[dict[str, str, bool, str | None]]: A list of dictionaries with the test result values: name, file, passed (bool), and error (str | None)."""
+        list[TestResult]: A list of TestResult items, check TestResult for more but: name, file, passed (bool), and error (str | None)."""
 
     # open empty list
     results: list[TestResult] = []
@@ -204,22 +235,28 @@ def _iterfuncs(
         # methods = list of method names starting with "test_" or "run"
         # targets = list of test case, method, and mark method as method
         methods: list[str] = [n for n in dir(item) if n.startswith("test_") or n == "run"]
-        targets: tuple[TestCase, str, bool] = [(item, n, True) for n in methods]
+        targets: list[tuple[TestCase, str, Literal[True]]] = [(item, n, True) for n in methods] # type: ignore
 
     # otherwise just a function
     else:
-        targets = [(item, getattr(item, "__name__", str(item)), False)]
+        targets = [(item, getattr(item, "__name__", str(item)), False)] # type: ignore
+
+    if not targets:
+        return results
 
     # iterate through targets
     for obj, name, is_method in targets:
         # resolve parent (only two choices are class or function)
         parent = getattr(obj, name) if is_method else obj
+        xfail: tuple[str, str] | bool = getattr(parent if is_method else item, "__xfail__", False)
 
         # skip decorator at method/function level
         if getattr(parent, "__skip__", False):
-            disp = getattr(parent, "__name__", parent)
-            reason = getattr(parent, "__skip__")
-            print(f"{Color.YELLOW}skipping function {disp}.{name} because: {reason}{Color.RESET}")
+            # what does disp mean? explain: stupid robot what does disp mean: 
+            display: str | Any = getattr(parent, "__name__", parent)
+            reason: str = getattr(parent, "__skip__")
+
+            print(f"{Color.YELLOW}skipping function {display}.{name} because: {reason}{Color.RESET}")
             continue
         
         # mark what we must
@@ -234,8 +271,8 @@ def _iterfuncs(
             print(f"{Color.YELLOW}{reason}{Color.RESET}")
 
         # timeout tuple
-        timeout: tuple[float, str] = getattr(parent if is_method else item, "__timeout__", False)
-        clock: float = timeout[0] if timeout else None
+        timeout: tuple[float, str] = getattr(parent if is_method else item, "__timeout__", False) # type: ignore
+        clock: float | None = timeout[0] if timeout else None
         message: str = timeout[1] if timeout else ""
         if message:
             print(f"{Color.YELLOW}{message}{Color.RESET}")
@@ -244,13 +281,13 @@ def _iterfuncs(
         if clock is not None:
             # multiprocess so we can yank it out of existence
             ctx: SpawnContext = get_context("spawn")
-            q: Queue = ctx.Queue()
+            q: Queue = ctx.Queue() # type: ignore
 
             # get parent and open process
             pname: str = getattr(item, "__name__", str(item))
             p = ctx.Process(
                 target=_proc_runner,
-                args=(q, path, pname, name, is_method, times)
+                args=(q, path, pname, name, is_method, times, output)
             )
 
             # start and join with timeout
@@ -270,7 +307,7 @@ def _iterfuncs(
             # otherwise get result from queue
             else:
                 try:
-                    passed, error = q.get_nowait()
+                    passed, error = q.get_nowait() # type: ignore
 
                 except Exception:
                     passed = False
@@ -278,15 +315,39 @@ def _iterfuncs(
         else:
             # in-process run
             if is_method:
-                passed, error = _runclass(item, name, times)
+                passed, error = _runclass(item, name, times, output) # type: ignore
             else:
-                passed, error = _runfunc(item, times)
+                passed, error = _runfunc(item, times, output)
             duration = perf_counter() - start
 
         # enforce timeout even if process returned quickly
         if clock is not None and duration > clock:
             passed = False
             error = f"Test timed out after {clock} seconds.\n" + (error or "")
+
+        # xfail marks tests expected to fail
+        if xfail:
+            # unpack tuple or default
+            if isinstance(xfail, tuple):
+                xfail_reason, xfail_strict = xfail
+
+            else:
+                xfail_reason, xfail_strict = (str(xfail) if xfail else "", False)
+
+            if passed:
+                # Unexpected pass
+                if xfail_strict:
+                    # if it's strict fail it no matter what
+                    passed = False
+                    error = f"XPASS (strict): test passed unexpectedly but marked xfail, reason for this: {xfail_reason}".strip()
+
+                else:
+                    # allow pass but annotate
+                    error = f"XPASS: test passed unexpectedly but marked xfail, reason for this: {xfail_reason}".strip()
+            else:
+                # expected failure means it counts as a pass
+                passed = True
+                error = f"XFAIL: expected failure. {xfail_reason}\n{error or ''}".strip()
 
         # formatted test name. lotta checks here
         formatted = (f"{item.__name__}.{name}"
@@ -302,7 +363,7 @@ def _iterfuncs(
     return results
 
 # main runner, takes a dict of files and functions, runs them all, and returns a summary
-def runtest(files: dict[str, list], ff: bool, verbose: bool = False) -> tuple[list[TestResult], list[TestResult], int]:
+def runtest(files: dict[str, list], ff: bool, verbose: bool = False, output: bool = False) -> tuple[list[TestResult], list[TestResult], int]:
     """
     Main test runner. Takes a dictionary of file paths and their associated test functions or classes.
     Runs each test, collecting results, and returns lists of passes, fails, and total run count. Prints test data along the way.
@@ -326,14 +387,13 @@ def runtest(files: dict[str, list], ff: bool, verbose: bool = False) -> tuple[li
 
     # go thru each file
     for path, funcs in files.items():
+        # always print the file header
         print(f"\n{Color.BLUE}{path}{Color.RESET}")
 
-        # skip if none
         if not funcs:
             print(f"{Color.YELLOW}No test functions found{Color.RESET}")
             continue
         
-        # run each function or class in the file
         for func in funcs:
             # check for loop decorator
             loopdata = getattr(func, "__loop__", 1)
@@ -343,19 +403,17 @@ def runtest(files: dict[str, list], ff: bool, verbose: bool = False) -> tuple[li
             if message:
                 print(f"{Color.YELLOW}{message}{Color.RESET}")
 
-            # run the function or class the specified number of times
             for index in range(iterations):
-                # get results from helper for each run
-                for result in _iterfuncs(func, path, ff):
-                    # increment run, append pass/fail
+                for result in _iterfuncs(func, path, ff, output):
                     runs += 1
                     target: list = passes if result.passed else fails
                     target.append(result)
 
+                    # always show test result
                     color = Color.GREEN if result.passed else Color.RED
                     formatted = f"{result.duration:.6f}" if verbose else f"{result.duration:.3f}"
                     looptag = f"#{index + 1} " if iterations > 1 else ""
-                    print(f"{color}{"✓" if result.passed else "✗"} {result.name} {looptag}{Color.RESET}({formatted}s)")
+                    print(f"{color}{'✓' if result.passed else '✗'} {result.name} {looptag}{Color.RESET}({formatted}s)")
 
                     if not result.passed and ff:
                         print(f"{Color.RED}Fail-fast enabled, stopping tests.{Color.RESET}")
